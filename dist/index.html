@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Daily Briefing</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho+B1:wght@600;800&family=Zen+Kaku+Gothic+New:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+/* Layout idea: a morning newspaper front page. Masthead with date + headline,
+   topic sections as columns of story cards, a detail reader sheet, and a
+   sticky podcast bar that reads the day's script aloud. */
+:root {
+  --paper: #f6f5f1;
+  --surface: #ffffff;
+  --ink: #1b1f2a;
+  --ink-soft: #5b6170;
+  --rule: #dcdad3;
+  --accent: #b4342b;          /* masthead red, used sparingly */
+  --chip: #eceae4;
+  --shadow: 0 1px 2px rgba(20,22,30,.06), 0 6px 24px rgba(20,22,30,.06);
+  --font-display: "Shippori Mincho B1", "Hiragino Mincho ProN", "Yu Mincho", serif;
+  --font-body: "Zen Kaku Gothic New", "Hiragino Sans", "Yu Gothic", system-ui, sans-serif;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #14161c; --surface: #1c1f27; --ink: #ecebe6; --ink-soft: #a3a7b3;
+    --rule: #2e323d; --accent: #ef6b5f; --chip: #272a34;
+    --shadow: 0 1px 2px rgba(0,0,0,.3), 0 6px 24px rgba(0,0,0,.25);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --paper: #14161c; --surface: #1c1f27; --ink: #ecebe6; --ink-soft: #a3a7b3;
+  --rule: #2e323d; --accent: #ef6b5f; --chip: #272a34;
+  --shadow: 0 1px 2px rgba(0,0,0,.3), 0 6px 24px rgba(0,0,0,.25);
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body {
+  background: var(--paper); color: var(--ink);
+  font-family: var(--font-body); font-size: 15px; line-height: 1.75;
+  padding-bottom: 120px;
+}
+a { color: inherit; }
+button { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.wrap { max-width: 1180px; margin: 0 auto; padding: 0 20px; }
+
+/* Masthead */
+.mast { border-bottom: 3px double var(--ink); padding: 28px 0 18px; }
+.mast-top { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between;
+  font-size: 13px; color: var(--ink-soft); letter-spacing: .04em; }
+.brand { font-family: var(--font-display); font-weight: 800; color: var(--accent); letter-spacing: .12em; font-size: 14px; }
+.datenav { display: flex; gap: 6px; align-items: center; }
+.datenav button, .datenav select {
+  background: var(--surface); border: 1px solid var(--rule); border-radius: 6px; padding: 4px 10px; cursor: pointer;
+  color: var(--ink); font: inherit; font-size: 13px;
+}
+.datenav button:disabled { opacity: .35; cursor: default; }
+.mast h1 { font-family: var(--font-display); font-weight: 800; font-size: clamp(30px, 5vw, 46px);
+  line-height: 1.25; margin: 14px 0 6px; text-wrap: balance; letter-spacing: .02em; }
+.headline { font-size: 16px; color: var(--ink-soft); max-width: 62em; margin: 0; text-wrap: pretty; }
+.stats { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+
+/* Topic filter chips */
+.chip { display: inline-flex; align-items: center; gap: 8px; border: 1px solid var(--rule); background: var(--surface);
+  border-radius: 999px; padding: 4px 12px; font-size: 13px; cursor: pointer; }
+.chip .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--c, var(--ink)); }
+.chip[aria-pressed="true"] { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+.chip .n { font-variant-numeric: tabular-nums; opacity: .7; }
+
+/* Sections */
+.topics { display: grid; gap: 40px; margin-top: 32px; }
+.topic-head { display: flex; align-items: baseline; gap: 12px; border-bottom: 1px solid var(--ink); padding-bottom: 6px; margin-bottom: 16px; }
+.topic-head h2 { font-family: var(--font-display); font-size: 24px; margin: 0; }
+.topic-head .bar { width: 6px; align-self: stretch; border-radius: 2px; background: var(--c); }
+.topic-head .count { color: var(--ink-soft); font-size: 13px; margin-left: auto; font-variant-numeric: tabular-nums; }
+.cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 14px; }
+.card {
+  position: relative; background: var(--surface); border: 1px solid var(--rule); border-radius: 10px;
+  padding: 16px 16px 14px 20px; display: flex; flex-direction: column; gap: 8px; text-align: left; cursor: pointer;
+  transition: transform .15s ease, box-shadow .15s ease;
+}
+.card::before { content: ""; position: absolute; left: 0; top: 12px; bottom: 12px; width: 4px; border-radius: 0 3px 3px 0; background: var(--c); }
+.card:hover { box-shadow: var(--shadow); transform: translateY(-1px); }
+.card.read { opacity: .55; }
+.card.read::after { content: "既読"; position: absolute; top: 12px; right: 12px; font-size: 11px; color: var(--ink-soft);
+  border: 1px solid var(--rule); border-radius: 4px; padding: 0 6px; }
+.meta { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; font-size: 12px; color: var(--ink-soft); }
+.tag { background: var(--chip); border-radius: 4px; padding: 1px 8px; }
+.imp { display: inline-flex; gap: 2px; }
+.imp i { width: 6px; height: 12px; border-radius: 1px; background: var(--rule); display: inline-block; }
+.imp i.on { background: var(--accent); }
+.card h3 { font-size: 17px; line-height: 1.5; margin: 0; text-wrap: balance; font-weight: 700; }
+.card p { margin: 0; color: var(--ink-soft); font-size: 14px; }
+.card .more { font-size: 13px; color: var(--c); font-weight: 700; margin-top: auto; }
+.empty { color: var(--ink-soft); font-size: 14px; padding: 12px 0; }
+
+/* Detail sheet */
+.scrim { position: fixed; inset: 0; background: rgba(10,12,18,.45); display: none; z-index: 20; }
+.scrim.open { display: block; }
+.sheet {
+  position: fixed; top: 0; right: 0; bottom: 0; width: min(680px, 100%); background: var(--surface);
+  z-index: 21; transform: translateX(100%); transition: transform .22s ease; overflow-y: auto;
+  border-left: 1px solid var(--rule); padding: 22px 24px 140px;
+}
+.sheet.open { transform: none; }
+@media (prefers-reduced-motion: reduce) { .sheet, .card { transition: none; } }
+.sheet-top { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.iconbtn { white-space: nowrap; background: var(--chip); border: 0; border-radius: 8px; padding: 6px 12px; cursor: pointer; font-size: 13px; }
+.sheet h2 { font-family: var(--font-display); font-size: 26px; line-height: 1.45; margin: 14px 0 10px; text-wrap: balance; }
+.why { border-left: 4px solid var(--c); background: var(--chip); border-radius: 0 8px 8px 0; padding: 10px 14px; margin: 14px 0; font-size: 14px; }
+.why b { display: block; font-size: 12px; color: var(--ink-soft); letter-spacing: .06em; }
+.md { max-width: 40em; }
+.md h3, .md h4 { font-size: 16px; margin: 20px 0 6px; }
+.md ul, .md ol { padding-left: 1.3em; }
+.md p { margin: 0 0 12px; }
+.sources { margin-top: 22px; border-top: 1px solid var(--rule); padding-top: 12px; font-size: 13px; }
+.sources ol { padding-left: 1.3em; margin: 6px 0 0; }
+.sources a { word-break: break-all; }
+.sheet-nav { display: flex; justify-content: space-between; gap: 8px; margin-top: 24px; }
+
+/* Podcast bar */
+.pod {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 30; background: var(--ink); color: var(--paper);
+  border-top: 1px solid var(--rule);
+}
+.pod-row { display: flex; align-items: center; gap: 14px; padding: 10px 20px; max-width: 1180px; margin: 0 auto; }
+.play { width: 44px; height: 44px; border-radius: 50%; border: 0; background: var(--accent); color: #fff; cursor: pointer;
+  display: grid; place-items: center; flex: none; }
+.play svg { width: 18px; height: 18px; fill: currentColor; }
+.pod-info { flex: 1; min-width: 0; }
+.pod-title { font-weight: 700; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pod-line { font-size: 12px; opacity: .75; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.prog { height: 3px; background: rgba(255,255,255,.18); border-radius: 2px; margin-top: 6px; overflow: hidden; }
+.prog span { display: block; height: 100%; background: var(--accent); width: 0; }
+.pod-ctrl { display: flex; gap: 6px; align-items: center; flex: none; }
+.pod-ctrl button, .pod-ctrl select { background: rgba(255,255,255,.1); border: 0; color: inherit; border-radius: 6px; padding: 6px 10px;
+  cursor: pointer; font-size: 13px; font: inherit; }
+.pod-ctrl option { color: #111; }
+.transcript { max-height: 0; overflow-y: auto; transition: max-height .2s ease; }
+.transcript.open { max-height: 46vh; }
+.transcript ol { list-style: none; margin: 0 auto; padding: 4px 20px 16px; max-width: 1180px; display: grid; gap: 4px; }
+.transcript li { font-size: 14px; padding: 6px 10px; border-radius: 6px; cursor: pointer; opacity: .75; display: grid; grid-template-columns: 4.5em 1fr; gap: 8px; }
+.transcript li b { font-weight: 700; opacity: .8; }
+.transcript li.now { background: rgba(255,255,255,.1); opacity: 1; }
+.pod { padding-bottom: env(safe-area-inset-bottom, 0); }
+/* ---------- Phone layout ---------- */
+@media (max-width: 640px) {
+  body { font-size: 16px; padding-bottom: calc(110px + env(safe-area-inset-bottom, 0px)); }
+  .wrap { padding: 0 16px; }
+  .mast { padding: 14px 0 0; border-bottom-width: 3px; }
+  .mast-top { flex-direction: column; align-items: stretch; gap: 8px; }
+  .datenav { display: grid; grid-template-columns: auto 1fr auto; }
+  .datenav button, .datenav select { min-height: 40px; font-size: 14px; }
+  .datenav button { padding: 4px 12px; }
+  .mast h1 { font-size: 28px; margin: 12px 0 4px; }
+  .headline { font-size: 15px; }
+  /* topic chips: sticky, single row, swipe sideways */
+  .stats { position: sticky; top: 0; z-index: 10; background: var(--paper); flex-wrap: nowrap; overflow-x: auto;
+    margin: 12px -16px 0; padding: 10px 16px; scrollbar-width: none; border-top: 1px solid var(--rule); }
+  .stats::-webkit-scrollbar { display: none; }
+  .chip { flex: none; min-height: 38px; padding: 4px 14px; }
+  .topics { gap: 32px; margin-top: 20px; }
+  .topic-head h2 { font-size: 21px; }
+  .cards { grid-template-columns: 1fr; gap: 10px; }
+  .card { padding: 14px 14px 12px 18px; }
+  .card:hover { transform: none; box-shadow: none; }
+  .card h3 { font-size: 16.5px; }
+  /* detail sheet becomes a full-screen reader */
+  .sheet { width: 100%; border-left: 0; padding: 0 18px calc(150px + env(safe-area-inset-bottom, 0px)); }
+  .sheet-top { position: sticky; top: 0; background: var(--surface); padding: 12px 0 10px; border-bottom: 1px solid var(--rule); z-index: 1; }
+  .sheet h2 { font-size: 22px; }
+  .md { font-size: 16px; }
+  .iconbtn { min-height: 40px; padding: 8px 14px; }
+  .sheet-nav { padding-top: 12px; border-top: 1px solid var(--rule); }
+  .sheet-nav .iconbtn { flex: 1; font-size: 13px; padding: 8px 6px; }
+  .pod-row { padding: 10px 16px; gap: 10px; }
+  .hide-sm { display: none; }
+  .pod-ctrl button, .pod-ctrl select { min-height: 38px; }
+  .transcript.open { max-height: 55vh; }
+  .transcript li { grid-template-columns: 1fr; gap: 0; }
+}
+footer { color: var(--ink-soft); font-size: 12px; margin: 48px 0 0; }
+</style>
+</head>
+<body>
+<header class="mast">
+  <div class="wrap">
+    <div class="mast-top">
+      <span class="brand">DAILY BRIEFING</span>
+      <div class="datenav">
+        <button id="prevDay" type="button" aria-label="前の日">← 前日</button>
+        <select id="dateSel" aria-label="日付を選ぶ"></select>
+        <button id="nextDay" type="button" aria-label="次の日">翌日 →</button>
+      </div>
+    </div>
+    <h1 id="dateTitle"></h1>
+    <p class="headline" id="headline"></p>
+    <div class="stats" id="filters" role="toolbar" aria-label="トピックで絞り込む"></div>
+  </div>
+</header>
+
+<main class="wrap">
+  <div class="topics" id="topics"></div>
+  <footer id="foot"></footer>
+</main>
+
+<div class="scrim" id="scrim"></div>
+<aside class="sheet" id="sheet" aria-hidden="true" aria-label="記事の詳細">
+  <div class="sheet-top">
+    <div class="meta" id="sMeta"></div>
+    <button class="iconbtn" id="sClose" type="button">閉じる ✕</button>
+  </div>
+  <h2 id="sTitle"></h2>
+  <div class="why" id="sWhy"></div>
+  <div class="md" id="sBody"></div>
+  <div class="sources" id="sSrc"></div>
+  <div class="sheet-nav">
+    <button class="iconbtn" id="sPrev" type="button">← 前の記事</button>
+    <button class="iconbtn" id="sRead" type="button">未読に戻す</button>
+    <button class="iconbtn" id="sNext" type="button">次の記事 →</button>
+  </div>
+</aside>
+
+<section class="pod" aria-label="ポッドキャスト">
+  <div class="transcript" id="transcript"><ol id="tList"></ol></div>
+  <div class="pod-row">
+    <button class="play" id="play" type="button" aria-label="再生">
+      <svg viewBox="0 0 24 24" id="playIcon"><path d="M7 4v16l13-8z"/></svg>
+    </button>
+    <div class="pod-info">
+      <div class="pod-title" id="pTitle"></div>
+      <div class="pod-line" id="pLine">再生ボタンで今日のニュースを読み上げます</div>
+      <div class="prog"><span id="pProg"></span></div>
+    </div>
+    <div class="pod-ctrl">
+      <button id="pBack" type="button" class="hide-sm" aria-label="前のセリフ">⟲</button>
+      <button id="pFwd" type="button" class="hide-sm" aria-label="次のセリフ">⟳</button>
+      <select id="pRate" aria-label="再生速度">
+        <option value="1">1.0x</option><option value="1.2" selected>1.2x</option>
+        <option value="1.4">1.4x</option><option value="1.6">1.6x</option><option value="1.8">1.8x</option>
+      </select>
+      <button id="pScript" type="button" aria-expanded="false">台本</button>
+    </div>
+  </div>
+</section>
+
+<script>
+const BRIEFINGS = [{"date":"2026-11-12","generated_at":"2026-11-12T14:09:31+09:00","headline":"Anthropic・Googleが新フロンティアモデルを相次いで投入し、AIの業務ツール化が加速。米CPI上振れで円は159円台に下落、食料品の消費税減税法案は参院で審議入り。","topics":[{"id":"ai","name":"最新のAI活用事例","color":"#6366f1","items":[{"title":"Anthropic、Claude Fable 5.2とMythos 5.2を公開","subcategory":"新モデル・新機能の発表","summary":"Anthropicが11月9日、フロンティアモデル「Claude Fable 5.2」と限定提供の「Mythos 5.2」を発表した。Fableは前版比で約20%値下げしつつ、コーディング性能を大きく伸ばしたとしている。","detail":"**背景**\nAnthropicはIPOを控えるなか、主力の上位モデルを更新した。Fable 5.2は一般提供、Mythos 5.2は審査を通った組織向けの限定提供となる。\n\n**発表内容**\n- **Fable 5.2**：一般提供。料金は入力$8/出力$40（100万トークンあたり）で、コンテキストは1Mトークン。報道によると価格はFable 5.1より約20%安く、出力は最大30%速い。高速モードもある\n- **Mythos 5.2**：基盤モデルはFableと同じ。Life Sciences / Cyber Verification Programを通じ、審査済み組織に限って提供する。Fable側にはサイバー・生物分野の悪用防止セーフガードがかかっている\n- **性能（Anthropic公表値）**：FrontierCode 2.0のスコアは49.1%で、Fable 5.1の32.4%から伸びた。安全策による過剰ブロックは初期テストで約55%減ったとしている\n\n**注意点**\nベンチマークはいずれも自社発表値で、第三者による検証はまだ少ない。","why_it_matters":"上位モデルが値下げされ、長いタスクの精度も上がったので、これまでコスト面で見送っていたコード生成や長文分析の自動化を試算し直す価値がある。","importance":3,"published":"2026-11-09","sources":[{"title":"CNBC: Anthropic releases Claude Fable 5.2 and Claude Mythos 5.2 ahead of IPO","url":"https://www.cnbc.com/2026/11/09/anthropic-claude-fable-5-2-mythos-5-2.html"},{"title":"The New Stack: Anthropic launches Fable 5.2 with a price cut and stronger coding scores","url":"https://thenewstack.io/anthropic-fable-coding-upgrade/"},{"title":"Claude Platform Docs: Claude Fable 5.2","url":"https://platform.claude.com/docs/en/models/fable-5-2/overview"}],"id":"ai-1"},{"title":"Google、Gemini 4 Carbonを一般向けに提供開始","subcategory":"新モデル・新機能の発表","summary":"Googleは10月28日に発表したフロンティアモデル「Gemini 4 Carbon」を、11月10日から開発者・企業・一般ユーザーに広く開放した。導入価格は100万トークンあたり入力$2・出力$10。","detail":"**背景**\nGemini 4 Carbonは10月28日に発表された。当初はサイバー防御の担当者など、限られたパートナーだけに先行提供されていた。\n\n**11月10日の拡大内容**\n- APIはGoogle AI StudioとGemini for business（Gemini Enterprise）で利用できる\n- AI Ultra加入者は、Geminiアプリ・AI Mode・Antigravityで使える\n- 導入価格は入力$2・出力$10（100万トークンあたり）で、Gemini 4 Argonと同じ\n\n**性能（Google公表値）**\n- SEC-bench Pro（脆弱性発見）88.2%、ExploitGym 54.8%、CWE-bench（修正）71.0%\n- コーディングやエージェント的なタスクで大きく伸びたとしている\n\n**注意点**\n一般的なソフトウェア開発や知識労働については、引き続きArgonを推奨しているという報道もある。12月以降に値上げされるという二次情報もあるが、公式には確認できていない。","why_it_matters":"セキュリティ診断や長いエージェントタスクで高性能なモデルを導入価格で試せる。自社の脆弱性チェックやコードレビューの自動化をPoCする好機になる。","importance":3,"published":"2026-11-10","sources":[{"title":"Google Blog: Gemini 4 Carbon is now available","url":"https://blog.google/innovation-and-ai/models-and-research/gemini-models/gemini-4-carbon-now-available/"},{"title":"9to5Google: Gemini 4 Carbon rolling out to Gemini app for AI Ultra, Argon remains","url":"https://9to5google.com/2026/11/10/gemini-app-4-carbon/"}],"id":"ai-2"},{"title":"Claude、会議AI・表計算・ホワイトボードを投入","subcategory":"サービスへのAI組み込み事例","summary":"AnthropicはClaudeに、会議参加AI「Claude Meetings」、表計算「Sheets」、共同キャンバス「Whiteboards」を追加した。いずれも有料プラン向けのベータで、業務アプリ領域に本格参入する。","detail":"**背景**\nAnthropicはチャットの枠を超え、Microsoft・Googleが押さえるオフィススイート領域に踏み込んだ。同じ日に「Claude Data」（旧Dashboards）も一般提供になった。\n\n**発表内容（11月10日）**\n- **Claude Meetings**：Team / Enterprise向け。Claudeが見える参加者としてGoogle Meetの通話に加わり、終了後に議事録・アクションアイテムなどをclaude.aiに残す。ローンチ時点ではZoom / Teamsに対応していない\n- **Claude Whiteboards**：ブレストや計画づくりのための共有キャンバス。Meetingsの中でも動き、会話に合わせてボードをリアルタイムに作る\n- **Claude Sheets**：複数タブ・数式・書式に対応し、Excelへ書き出せる。Google Workspace向けプラグインも付く\n\n**提供条件**\n- 有料プランでベータ提供（Web / デスクトップ / モバイル）\n- Enterpriseでは、SheetsとWhiteboardsは既定でオフ\n- ベータ終了後の価格は未発表","why_it_matters":"会議の議事録からタスク化までをAIに任せる流れが標準になりつつある。自社の会議運営や営業日報の自動化に、既製ツールを組み込む余地が大きい。","importance":3,"published":"2026-11-10","sources":[{"title":"TechCrunch: Anthropic launches Claude Meetings to turn workplace discussions into plans and tasks","url":"https://techcrunch.com/2026/11/10/anthropic-launches-claude-meetings-to-turn-workplace-discussions-into-plans-and-tasks/"},{"title":"Yahoo Finance: Anthropic launches Meetings, Whiteboards, Sheets, Data ahead of IPO","url":"https://finance.yahoo.com/technology/article/anthropic-launches-meetings-whiteboards-sheets-data-ahead-of-ipo-190548601.html"}],"id":"ai-3"},{"title":"OpenAI、企業向け「Businesses in ChatGPT」をベータ公開","subcategory":"サービスへのAI組み込み事例","summary":"OpenAIは企業がChatGPT上の自社プロフィールを管理できる「Business Hub」と、顧客対応用の「Business Agents」をベータ公開した。ChatGPTが新しい集客・接客チャネルになり始めた。","detail":"**背景**\nChatGPTで商品やサービスを調べる人が増え、企業にとっては「AI上でどう表示されるか」が新しい課題になっている。\n\n**発表内容（11月10日）**\n- **Business Hub**：企業がChatGPT上のプロフィールを申請・認証し、情報を更新できる。ChatGPT内での言及頻度、サイトへのクリック数、話題になったトピックといった分析も見られる。ChatGPTが使える全市場の対象企業に開放\n- **Business Agents**：ChatGPTの中で買い物客の質問に答える自社エージェントを作れる。当初は米国のEC・オンラインサービス事業者に限定\n- **広告連携**：エージェントをスポンサー表示し、ChatGPT Adsの遷移先として使える。スポンサー枠は明示され、通常の回答とは分けて表示される\n\n**プライバシーと接続**\n- ユーザーの会話やエージェントとのチャット内容は企業に共有しない\n- Shopifyの加盟店は連携できる\n- 今後、対象市場と業種を広げる予定","why_it_matters":"「AI検索での見え方」を管理して分析する手段ができた。日本展開前の今のうちに、自社情報の整備やAI経由の集客導線を考えておくべきだ。","importance":3,"published":"2026-11-10","sources":[{"title":"TechTarget: OpenAI's Businesses in ChatGPT targets enterprise trust","url":"https://www.techtarget.com/news/openais-businesses-in-chatgpt-targets-enterprise-trust/874431/"},{"title":"Technology.org: OpenAI Lets Businesses Claim ChatGPT Profiles and Launch Their Own Agents","url":"https://www.technology.org/2026/11/11/openai-businesses-in-chatgpt-business-hub-agents-beta/"}],"id":"ai-4"},{"title":"Google、病院・保険向けGemini for healthcare","subcategory":"サービスへのAI組み込み事例","summary":"Google Cloudは病院・診療所・医療保険会社向けのAIエージェント「Gemini for healthcare」をプレビュー提供した。カルテ要約や保険の事前承認審査など、事務負担の軽減を狙う。","detail":"**背景**\n米国の医療現場では、事前承認などの事務作業が臨床医の大きな負担になっている。OpenAIとAnthropicはすでに医療向け製品を出しており、Googleの参入は約10か月遅れたと報じられている。\n\n**発表内容（11月10日、米国でプレビュー）**\n- 病院・保険会社の記録・請求・保険システムに接続し、それらをまたいで作業する\n- 初期スキルは、カルテ要約、診察準備、給付確認\n- Epic・Oracle Healthのカルテは読むだけで、書き戻しはしない\n- 保険会社向けには、請求を医療ポリシーと照合し、臨床審査担当者向けに所見を整理する\n- モデルはGoogle・Anthropic・OpenAIから選べる\n\n**導入企業・条件**\n- Northwell Health、HCA Healthcare、Optum、Highmark Health、BCBS of Massachusetts、Stanford School of Medicineなど\n- Gemini Enterprise Standard / Plusの顧客が対象。価格は非公開","why_it_matters":"規制業界でも「読み取りのみ・人が最終確認」という設計なら導入が進むことを示した例で、自社の審査・照合業務にAIを入れる際の設計の参考になる。","importance":2,"published":"2026-11-10","sources":[{"title":"Fortune: Google launches Gemini for healthcare, and hospitals like Northwell hope it brings down your medical bill","url":"https://fortune.com/2026/11/10/google-gemini-for-healthcare-and-hospitals-northwell-medical-costs-affordability-insurance/"},{"title":"Dataconomy: Google Launches Gemini For Healthcare To Tackle Medical Costs","url":"https://dataconomy.com/2026/11/11/google-launches-gemini-for-healthcare-to-tackle-medical/"}],"id":"ai-5"},{"title":"Adobe MAX 2026、全製品にAIエージェントを搭載","subcategory":"サービスへのAI組み込み事例","summary":"AdobeはMAX 2026で「Creative Agent」をFireflyと主要なCreative Cloudアプリに広げた。外部エージェントがMCP経由でPhotoshopなどのファイルを編集できる仕組みもプレビューした。","detail":"**背景**\nクリエイティブツールの主戦場が、個々の生成機能から「作業を代行するエージェント」に移りつつある。\n\n**発表内容（11月10日）**\n- **Creative Agentの拡大**：Firefly AI Assistant（ベータ）に加え、After Effects・Premiere・Illustrator・InDesign・Frame.io、ベータ版Photoshopのアシスタントを動かす\n- **Plan Mode**：エージェントが実行前に作業計画を示し、承認してから動かせる。モデルセレクターでAIモデルも選べる\n- **常時稼働エージェント（プレビュー）**：素材整理や品質チェックといった定型作業をバックグラウンドで処理する\n- **MCP連携（プレビュー）**：外部エージェントがPhotoshop / Illustrator / Premiere / After Effectsのネイティブファイルを、レイヤーなどを保ったまま編集できる。プライベートベータは2027年初頭の見込み\n- **Firefly Builder**：自然言語からWebサイト・プレゼン・アプリの試作品を作る（プライベートベータ）\n- FireflyではGoogle・OpenAI・ByteDance・Kling・ElevenLabsなど他社モデルも選べる。GenStudioにはCX Enterprise Coworkerを追加","why_it_matters":"制作物の定型処理をエージェントに任せられれば、販促物やSNS素材の量産体制を少人数で回せる。MCP対応で自社エージェントとの連携も現実的になる。","importance":2,"published":"2026-11-10","sources":[{"title":"Adobe Newsroom: Adobe Powers a New Era of Creativity, Bringing Agents and Tools to Creatives Wherever and However They Create","url":"https://news.adobe.com/news/2026/11/adobe-powers-new-era-of-creativity"},{"title":"Variety: Adobe Is Adding AI Agent Features Across Its Product Lines: Adobe MAX Keynote","url":"https://variety.com/2026/digital/news/adobe-ai-agentic-features-max-2026-1236943958/"}],"id":"ai-6"},{"title":"Meta、エージェント実行向け軽量モデル「Muse Ember」","subcategory":"新モデル・新機能の発表","summary":"MetaはMuseシリーズで最小・最安の推論モデル「Muse Ember」を公開した。入力$0.10・出力$0.50（100万トークンあたり）と低価格で、エージェントの大量反復処理を狙う。","detail":"**背景**\nエージェントは、ツール呼び出しや情報抽出のように細かな処理を何度も繰り返す。Metaは「計画は上位のMuse Wonder、大量の実行はEmber」という役割分担を打ち出した。\n\n**発表内容（11月9日）**\n- 料金は入力$0.10・出力$0.50（100万トークンあたり）、キャッシュ読み込みは$0.004\n- コンテキストは1Mトークン。テキスト・画像・動画・音声・PDFを入力でき、出力はテキスト\n- 主な用途は、ツール呼び出し、コーディングのサブタスク、ルーティング、抽出、長い文書の解析\n- Muse CodeとMeta Model APIで「muse-ember-1.0」として使える。OpenRouterにも掲載されている\n\n**性能**\n- Artificial AnalysisのIntelligence Indexは36で、Claude Haiku 5.5（max）と同じスコアを約3分の1のコストで出す\n- Terminal-Bench 4.0ではHaikuを上回るが、FrontierCode 2.0では下回る","why_it_matters":"大量の定型処理（問い合わせ分類、帳票抽出など）を安いモデルに回し、難しい判断だけ上位モデルに任せる二層構成にすると、AIの運用コストを大きく下げられる。","importance":2,"published":"2026-11-09","sources":[{"title":"TechCrunch: Meta releases Muse Ember, a new lightweight model for agent execution","url":"https://techcrunch.com/2026/11/09/meta-releases-muse-ember-a-new-lightweight-model-for-agent-execution/"},{"title":"Artificial Analysis: Meta's Muse Ember is the cheapest model scoring 36 on the Intelligence Index","url":"https://artificialanalysis.ai/articles/meta-s-muse-ember-is-the-cheapest-model-scoring-36-on-the-intelligence-index"}],"id":"ai-7"},{"title":"LINEヤフー、AIエージェント「Agent i」を単独アプリ化","subcategory":"サービスへのAI組み込み事例","summary":"LINEヤフーはAIエージェント「Agent i」のiOSアプリを11月10日に公開した。LINEやYahoo! JAPANを経由せずに使えるようになり、分野別の「領域エージェント」は累計40領域に広がった。","detail":"**背景**\nAgent iは、Yahoo! JAPANの「AIアシスタント」とLINEの「LINE AI」をまとめたブランドで、2026年4月に始まった。これまではLINEかYahoo! JAPANのアプリからしか使えなかった。\n\n**発表内容（11月10日）**\n- iPhone / iPad向けの専用アプリを提供開始。Android版は順次提供\n- ホーム画面からワンタップで起動でき、ウィジェットやタスク機能と連動した通知に対応する\n- LINEアカウントかYahoo! JAPAN IDでログインする。未ログインでも一部の機能は使える\n- 分野別の「領域エージェント」はβ版を含め累計40領域。たとえば「推し活」エージェントは、好きなアーティストのイベント・チケット・グッズ情報をAIが整理する\n\n**位置づけ**\n国内の大手プラットフォームが、AIエージェントを既存アプリの付属機能から独立した入口に格上げした事例。","why_it_matters":"国内の消費者向けAIの入口が専用アプリへ移りつつある。自社サービスを領域エージェントや外部エージェントに組み込んでもらう連携戦略を検討する価値がある。","importance":2,"published":"2026-11-10","sources":[{"title":"Web担当者Forum: LINEヤフーがAIエージェント「Agent i」のiOSアプリを提供開始、領域エージェントは累計40に拡大","url":"https://webtan.impress.co.jp/n/2026/11/11/53586"},{"title":"LINEヤフー: AIエージェント「Agent i」のアプリを提供開始","url":"https://www.lycorp.co.jp/ja/news/release/020972/"}],"id":"ai-8"}]},{"id":"poker","name":"日本のポーカー業界","color":"#10b981","items":[{"title":"JOPT 2026 Osaka #02閉幕、メイン863エントリー","subcategory":"大会・イベント","summary":"日本最大級のポーカーツアーJOPTの大阪大会（#02）が10月29日〜11月3日に堂島リバーフォーラムで開催された。Main Eventは863エントリーを集め、韓国のCallmanさんが初優勝した。","detail":"**背景**\n日本のライブトーナメントの中心であるJapan Open Poker Tour（JOPT）は、東京に加えて大阪でも定期開催している。今回の大阪大会は会場の堂島リバーフォーラムで行う最後の大会とされていた。\n\n**何が起きたか**\n- 会期: 2026年10月29日〜11月3日、会場は大阪・堂島リバーフォーラム\n- NLH Main Event: **863エントリー**。韓国のCallmanさんが優勝（JOPT出場3回目でメイン初制覇）、2位はしんたろうさん、3位はsawaさん（LightTHREEの結果記事より）\n- 公式アプリ「JOPT Games」で、Main Event Day 2につながるOnline Day 1を実施。10月18日の初回では20名がDay 2進出を決め、Day 2は10月31日に会場で行われた\n- 会期中にはハロウィン企画など、競技以外の催しも行われた\n- 次回の大阪開催は2027年3月18日〜22日と告知されている\n\n**ポイント**\n海外勢が優勝するほど大会が国際化している。アプリのオンライン予選からライブ本戦へ進む導線も定着してきた。","why_it_matters":"受講生が「オンライン予選→ライブ本戦」で国内大型大会に挑戦する流れが定着しているため、次の大阪（2027年3月）やTokyo大会に向けて、予選対策や大人数トーナメントの講座を組むとよい。","importance":3,"published":"2026-11-03","sources":[{"title":"LightTHREE: JOPT 2026 Osaka #02結果｜Callmanさんがメイン初優勝！ハロウィン企画などを振り返る","url":"https://light-three.com/jopt-2026-osaka-02-result/"},{"title":"Japan Open Poker Tour: 公式サイト","url":"https://japanopenpoker.com/"},{"title":"JOPT Games: JOPT Games で JOPT 2026 Osaka #02 Online Day 1 開催!!","url":"https://japanopenpoker.com/games/jopt-2026-osaka-02-online-day-1/"},{"title":"X: Osaka / Japan Open Poker Tour (@JOPT_osaka)","url":"https://x.com/JOPT_osaka"}],"id":"poker-1"},{"title":"済州JPFで日本勢がタイトル量産、岡本詩菜さんらが優勝","subcategory":"プレイヤー・コミュニティ","summary":"韓国・済州島のJeju Poker Festival 2026で、11月上旬に日本人プレイヤーが相次いでタイトルを獲得した。Tomoyuki MaedaさんがKPC JEJU CUP、岡本詩菜さんがEvent #77で優勝した。","detail":"**背景**\n日本国内では大会の賞金や賞品に強い制約がある。そのため、日本人プレイヤーは韓国・済州島など近隣アジアのフェスティバルへ積極的に遠征している。Jeju Poker Festival 2026（JPF、RDPT・KPC共催）もその一つ。\n\n**何が起きたか（Hendon Mob等の記録より）**\n- 11月2日: **Tomoyuki Maedaさん**が#43 KPC JEJU CUP（41エントリー）で優勝。賞金は₩11,837,000（約$8,875、日本円で約140万円と報道）。同イベントでは日本のDaisuke Nakagawaさんも3位\n- 11月2日: Shingo Hoshiaiさんが#46 2-7 Single Draw Mixで優勝\n- 11月5日: Naohiro Aritaさんが#70、Yoshiyuki Kamagaさんが#72 High Roller Hyper Turbo（₩2,000,000）で優勝\n- 11月6日: **Shiina Okamoto（岡本詩菜）さん**が#77（₩800,000 NLH）で優勝\n- 前半戦だけで日本勢が5タイトルを獲得したと報じられている。#25 Baby Dragon（564エントリー）でも、じぇいそるさんら日本勢5名がDay 2に進出した\n\n※バイインの表記はHendon MobとSoMuchPokerで食い違っている（KPC JEJU CUPが₩1,000,000か₩800,000か）。","why_it_matters":"受講生の実戦の場として、海外遠征がますます身近になっている。遠征時のバンクロール管理、ミックスゲームなどNLH以外の種目、海外大会の情報提供が、アカデミーとして差別化しやすいテーマになる。","importance":2,"published":"2026-11-06","sources":[{"title":"The Hendon Mob: Jeju Poker Festival 2026 (JPF) ft. RDPT & KPC Poker","url":"https://pokerdb.thehendonmob.com/festival.php?a=r&n=71061"},{"title":"SoMuchPoker: KPC JEJU CUP (800,000 KRW) / Jeju Poker Festival 2026","url":"https://somuchpoker.com/events-calendar/jpf/2026/jeju-poker-festival-2026/43-kpc-jeju-cup"},{"title":"LightTHREE: 【JPF 2026 前半リザルト】岡本詩菜・じぇいそる・でんがんら日本勢が超躍進！","url":"https://light-three.com/jpf-result-2026/"}],"id":"poker-2"},{"title":"DeNA『EDGE POKER』に全国大会機能・友達対戦を追加","subcategory":"業界・店舗・アプリ","summary":"DeNAとPOKER ROOM（世界のヨコサワさん所属）が手がけるポーカーアプリ『EDGE POKER』が10月30日に大型アップデートを行った。全国規模の大会機能「CHAMPIONSHIP」と友達対戦「FRIEND GAME」を追加し、TV番組への出演権がかかった特別大会も行う。","detail":"**背景**\n『EDGE POKER』は、DeNAとプロポーカープレイヤー「世界のヨコサワ」さんが率いるPOKER ROOMの協業で生まれたスマホ向けテキサスホールデムアプリ。2026年1月27日に配信を始め、初心者から上級者までを対象にしている。7月31日からは、6か月記念として100日間毎日開催の「EDGE 100 CHAMPIONSHIP」（1日最大1,000人）を行っていた。\n\n**何が起きたか**\n- 2026年10月30日（金）に大型アップデートを実施\n- 全国規模のトーナメント機能「**CHAMPIONSHIP**」を正式に実装\n- 友達同士で対戦できる「**FRIEND GAME**」を追加\n- 優勝者がTV番組『ポーカー最強職業決定戦』への出演権を得られる特別大会を開催\n\n**ポイント**\n大手ゲーム会社と有名プロ、TV番組を組み合わせて、ポーカーの入口を広げる動きが強まっている。なお、大会日程や賞品・参加条件の詳細は、今回確認した範囲ではわからなかった。","why_it_matters":"アプリから新しくポーカーを始める層が増えるので、そのプレイヤーを受け入れるアカデミーの入門講座を充実させる好機。友達対戦機能は、講座の練習やコミュニティ施策にも使えるか検討する価値がある。","importance":2,"published":"2026-10-30","sources":[{"title":"PR TIMES: 『EDGE POKER』 10月30日(金)に大型アップデート！","url":"https://prtimes.jp/main/html/rd/p/000000245.000013971.html"},{"title":"GameWith: EDGE POKER アップデート情報","url":"https://gamewith.jp/gamedb/14312/articles/65232"},{"title":"gamebiz: DeNA、スマートフォン向けポーカーゲームアプリ『EDGE POKER』をリリース…プロポーカープレイヤー「世界のヨコサワ」率いるPOKER ROOMと協業","url":"https://gamebiz.jp/news/419925"}],"id":"poker-3"}]},{"id":"world","name":"国内外の大型ニュース","color":"#f59e0b","items":[{"title":"食料品の消費税減税法案が参院で審議入り","subcategory":"国内","summary":"食料品の消費税を8%から1%に下げる法案が11日、参院本会議で審議入りしました。与党は参院で少数のため、野党の協力を得て12月12日の会期末までに成立させられるかが焦点です。","detail":"### 背景\n- 高市政権の看板政策で、衆院はすでに通過済み。\n- 自民党と日本維新の会の与党は**参院では過半数に届かず**、成立には野党の賛成が必要。\n\n### 何が起きたか\n- 11月11日の参院本会議で審議入りし、高市首相が出席して答弁。\n- 法案は**2027年4月から2年間、食料品の消費税を8%→1%**に引き下げる内容で、減税規模は年約5兆円。\n- 減税終了後は中低所得者向けの「支援金」を本格導入する仕組みも盛り込まれている。\n- 首相は「大半の対象者が減税効果を上回る支援を受けられる」と強調したが、財源や支援金の詳細設計は示さず、野党との修正協議には前向きな姿勢を示した。\n\n### 今後の見通し\n- 13日から首相出席で参院特別委員会の質疑が始まる。\n- 国民民主党や公明党は修正内容や審議次第で賛否を判断する構え。\n- 会期末（12月12日）までに成立するか、法案修正が入るかが注目点。","why_it_matters":"成立すれば2027年春から毎日の買い物の税負担が大きく変わる制度変更です。財源論や支援金の設計は家計にも財政にも影響するため、国会の行方を押さえておきましょう。","importance":3,"published":"2026-11-11","sources":[{"title":"時事ドットコム: 中低所得者の支援継続、高市首相強調 消費減税法案、参院審議入り","url":"https://www.jiji.com/jc/article?k=2026111100125&g=pol"},{"title":"NHK: 食料品 消費税減税法案 参院で審議入り 与党が少数 その行方は","url":"https://news.web.nhk/newsweb/na/nd-20261111de74440"},{"title":"OANDA: 食料品の消費税1%法案が衆院通過｜中身と財源、参院の行方を図解","url":"https://www.oanda.jp/lab-education/market_news/20261109_food_consumption_tax_cut/"}],"id":"world-1"},{"title":"米CPI上振れで12月利上げ観測、米長期金利5%近辺","subcategory":"経済・マーケット","summary":"10日発表の米10月消費者物価指数（CPI）は前月比0.4%上昇、コアも0.3%と3カ月連続で予想を上回りました。FRBの12月利上げ観測が強まり、米10年債利回りは一時5%に迫る水準まで上昇しています。","detail":"### 背景\n- FRBの政策金利は3.75〜4.00%。10月会合では据え置き（10対2）だった。\n- 利下げではなく**再利上げ**が議論される局面に入っている。\n\n### 何が起きたか\n- 10月CPIは総合が前月比**+0.4%**、コアが**+0.3%**と、コアは3カ月連続で予想超え。\n- 昨年の政府閉鎖でデータ欠損があり、BLSは前年比の数値を公表していない。\n- ウォラー理事は「コア0.3%なら0.5%利上げも検討対象」との考えを示していたが、0.25%利上げに傾いているとされる。\n- 米10年債利回りは4.99%前後と、5%の節目に接近。\n- 市場では、米金利上昇がドル高・円安を後押しし、日本の輸入物価や金利にも波及するとの見方が出ている。\n\n### 今後の見通し\n- FOMCは**12月8〜9日**。利上げ幅（0.25%か0.5%か）が焦点。\n- 月内に発表されるPCE物価指数が次の材料。\n- 米金利上昇は円安・株価の変動要因になりやすい。","why_it_matters":"米国の利上げ観測と長期金利5%は、円安、住宅ローン金利、株価など日本の家計と企業にも波及します。12月のFOMCは年内最大級のイベントです。","importance":3,"published":"2026-11-10","sources":[{"title":"CNBC: CPI inflation report: October 2026","url":"https://www.cnbc.com/2026/11/10/cpi-inflation-report-october-2026.html"},{"title":"Bloomberg: US Inflation: Core CPI Rises More-Than-Forecast 0.3%, Supporting Rate Hike","url":"https://www.bloomberg.com/news/articles/2026-11-10/us-core-cpi-rises-more-than-forecast-0-3-supporting-rate-hike"},{"title":"Trading Economics: US 10 Year Treasury Note Yield","url":"https://tradingeconomics.com/united-states/government-bond-yield"}],"id":"world-2"},{"title":"ロシアとウクライナ、9カ月ぶり協議で大規模捕虜交換に合意","subcategory":"国際","summary":"米国仲介でアブダビで開かれたロシアとウクライナの2日間の協議が11日に終わり、大規模な捕虜交換で原則合意しました。一方、停戦や領土問題では進展がなく、米特使はプーチン大統領と会談する予定です。","detail":"### 背景\n- 開戦から約4年半。両国の直接協議は**約9カ月ぶり**。\n- 2026年2月のアブダビ協議でも314人の捕虜交換が実現していた。\n\n### 何が起きたか\n- 11月10〜11日、米国の仲介でアラブ首長国連邦（UAE）のアブダビで協議。\n- 大規模な捕虜交換で原則合意し、人数は後日詰める。米特使クシュナー氏は「戦争で最大の人道的解放」と表現。\n- **停戦や領土問題では隔たりが残り**、目立った進展はなし。ロシア側代表のメジンスキー氏は追加協議を行うとした。\n- 米国側は双方の「信頼の欠如」が交渉の妨げになっていると指摘しており、短期間での和平合意は見通しにくい。\n- 協議と並行して戦闘は続いており、ウクライナのロシア攻撃に伴いバルト諸国上空でNATO機が緊急発進する場面もあった。\n\n### 今後の見通し\n- クシュナー、ウィトコフ両特使がモスクワでプーチン大統領と会談し、その後ダブリンでゼレンスキー大統領と会う予定。\n- 和平に向けた本格交渉に進めるかが今後の焦点。","why_it_matters":"ウクライナ戦争の行方は、エネルギー価格や欧州経済、日本の対ロ政策にも直結します。「捕虜交換は合意、停戦はまだ」という現状を押さえておくと会話で困りません。","importance":3,"published":"2026-11-11","sources":[{"title":"PBS NewsHour: Russia and Ukraine agree to a large prisoner exchange as talks end with no major breakthrough","url":"https://www.pbs.org/newshour/world/russia-and-ukraine-agree-to-a-large-prisoner-exchange-as-talks-end-with-no-major-breakthrough"},{"title":"Euronews: Abu Dhabi peace talks end with prisoner exchange agreement as US envoys prepare to meet Putin","url":"https://www.euronews.com/2026/11/11/abu-dhabi-peace-talks-end-with-prisoner-exchange-agreement-as-us-envoys-prepare-to-meet-pu"},{"title":"The Japan Times: Russia and Ukraine agree to prisoner swap as U.S. says lack of trust holds back talks","url":"https://www.japantimes.co.jp/news/2026/11/12/world/politics/russia-ukraine-prisoner-swap-us-talks/"}],"id":"world-3"},{"title":"エヌビディア、フアンCEO解任を検討と報道 株価急落","subcategory":"経済・マーケット","summary":"米紙WSJは11日、エヌビディア取締役会がジェンスン・フアンCEOの解任を準備していると報じました。同社株は時間外取引で約8〜9%急落し、AI・半導体相場全体への影響が警戒されています。","detail":"### 背景\n- エヌビディアはAI半導体の最大手で、世界の株式市場をけん引する銘柄。\n- 取締役会は11月8日、フアン氏が外国の情報工作の標的になった可能性などについて調査を開始していた（当初は「信頼している」と表明）。\n\n### 何が起きたか\n- WSJが、取締役会がフアン氏の解任を準備していると報道。米当局が中国の情報機関との関係を疑う女性との関係などが問題視されているとされる。\n- 取締役会は11日（米国時間）にも会合を開き、去就を協議する見通しと報じられた。\n- 株価は通常取引で上昇して終えた後、**時間外で約8〜9%急落**。\n- 政治の反応も分かれ、一部議員が辞任を要求する一方、トランプ大統領はフアン氏を擁護する発言をしている。\n\n### 今後の見通し\n- 12日朝時点で取締役会の最終判断は確認されていない。\n- 明確な後継者がいないとの指摘もあり、解任となればさらなる株安を予想するアナリストもいる。\n- 日本の半導体関連株やAI関連銘柄にも波及する可能性。","why_it_matters":"AI相場の中心企業の経営トップを巡る問題で、日米の株価や半導体関連株全体を左右しかねません。取締役会の判断は今週のマーケット最大の注目点の一つです。","importance":3,"published":"2026-11-12","sources":[{"title":"日本経済新聞: ＜米国・時間外＞エヌビディア急落 ファンCEO解任準備と報道","url":"https://www.nikkei.com/article/DGXZQOFL120DP0S6A111C2000000/"},{"title":"CNN.co.jp: エヌビディア株が下落、取締役会がフアンCEOの去就検討との報道受け","url":"https://www.cnn.co.jp/tech/35254746.html"},{"title":"NBC News: Nvidia shares drop after hours as board meets over CEO Jensen Huang's future","url":"https://www.nbcnews.com/business/business-news/nvidia-shares-drop-hours-reports-meeting-ceo-jensen-huangs-future-rcna608906"}],"id":"world-4"},{"title":"日経平均789円高で3連騰、円は1ドル159円台に下落","subcategory":"経済・マーケット","summary":"11日の日経平均は789円高の6万1248円で3日続伸し、AI・半導体関連が買われました。為替は米CPI上振れを受けてドル買いが進み、1ドル=159円台後半と9月下旬以来の円安水準となり、介入警戒も再燃しています。","detail":"### 株式市場\n- 11日の日経平均終値は**6万1248円59銭（+789円01銭）**で3日続伸。TOPIXも35.68ポイント高の3929.39。\n- 朝方は前日の米株安で下げたが、AI・半導体関連や好業績銘柄に買いが入り、一時900円超上昇。\n- 一方、10日に決算を発表した**ソフトバンクグループは中間期で7680億円の最終赤字**（米AIデータセンターの発電設備計画見直しで5972億円の損失）となり、株価は売られた。\n\n### 為替\n- 東京時間に1ドル=158円台後半まで円安が進み、10月高値を更新。\n- NY時間には米CPI上振れで**159円94銭まで**ドル高・円安が進行。\n- 政府・日銀による**円安是正の為替介入への警戒感**も再燃している。\n\n### 今後の見通し\n- 160円の節目を超えるか、当局の対応が焦点。\n- エヌビディアを巡る報道を受け、12日の半導体関連株の動向にも注意。","why_it_matters":"日経平均6万円台、1ドル160円目前という水準は、物価・輸入コストや企業業績に直結します。為替介入の有無は今後数日の大きな話題になり得ます。","importance":2,"published":"2026-11-11","sources":[{"title":"日本経済新聞: 日経平均終値789円高 好業績銘柄を集中物色、住友不動産が急伸","url":"https://www.nikkei.com/article/DGXZQOUB109RETQ6A111C2000000/"},{"title":"OANDA: ドル/円見通し：159円台後半で小動き｜1円超の上昇で159.94円まで(2026年11月12日)","url":"https://www.oanda.jp/lab-education/market_news/report_usdjpy_20261112/"},{"title":"時事ドットコム: ソフトバンクＧ、中間赤字に転落 ７６８０億円、データセンターで損失","url":"https://www.jiji.com/jc/article?k=2026111000777&g=eco"}],"id":"world-5"},{"title":"APECでの日中首脳会談、調整不調と報道","subcategory":"国内","summary":"中国・深圳で18〜19日に開かれるAPEC首脳会議に合わせた高市首相と習近平国家主席の正式会談について、調整が不調だと共同通信が10日に報じました。首相の台湾有事を巡る国会答弁に中国が反発し、対話を拒む姿勢を崩していないためです。","detail":"### 背景\n- 高市首相の台湾有事に関する国会答弁をきっかけに、中国が強く反発し日中関係が冷え込んでいる。\n- 今年のAPEC首脳会議は中国が議長国で、11月18〜19日に深圳で開催。\n\n### 何が起きたか\n- 共同通信によると、APECの場での**正式な日中首脳会談は調整が不調**。\n- 中国筋は「主要な参加国の中で日本が唯一、習氏と会談しない国になる」と指摘。\n- 首相はAPECへの出席を調整しており、日本政府は直前まで会談実現を目指す方針。\n- 茂木外相は10月下旬の国会で、APECでの2国間会談は「現在検討中」として相手国の明言を控えていた。\n- 日本だけが習氏と会談できない形になれば、対中外交の手詰まり感が国内でも議論を呼ぶ可能性がある。\n\n### 今後の見通し\n- 正式会談が見送られても、会議の場での握手や短時間の立ち話にとどまる可能性。\n- 日中関係の悪化は、経済交流や在留邦人、日本企業の中国事業にも影響し得る。","why_it_matters":"隣国で最大の貿易相手の一つである中国との首脳対話が開けない状態は、外交だけでなくビジネス環境にも影を落とします。来週のAPECでの接触の有無に注目です。","importance":2,"published":"2026-11-10","sources":[{"title":"Yahoo!ニュース: 日中首脳会談 実現への調整不調","url":"https://news.yahoo.co.jp/pickup/6602093"},{"title":"ライブドアニュース: APECの日中首脳会談 調整不調 首相の答弁に中国反発","url":"https://news.livedoor.com/topics/detail/32784085/"}],"id":"world-6"},{"title":"政府、安保3文書改定で原子力潜水艦の検討へ","subcategory":"国内","summary":"政府は年内に改定する安保3文書に、原子力潜水艦について「導入を視野に検討する」方針を盛り込む方向で調整していると報じられました。導入の明記は見送り、利点やコストを整理して判断する案が有力です。","detail":"### 背景\n- 国家安全保障戦略など「安保3文書」を年内に改定する予定で、与党内で議論が始まっている。\n- 中国の太平洋への海洋進出を踏まえ、潜水艦戦力の強化が論点に。\n\n### 何が起きたか\n- 報道によると、政府は原子力潜水艦について**「導入を視野に検討」**と盛り込む方向で調整。「導入」そのものを打ち出すことは見送る案が有力。\n- 「調査・研究に着手」「検討して結論を得る」といった文言案も挙がっている。\n- 自民党の安全保障調査会では保有検討を求める意見が出た。維新は原潜導入と非核三原則の再検討を主張し、自民党は慎重姿勢。\n- 政府の非核三原則に関する公式方針は変わっておらず、高市首相も維持を表明している。\n\n### 今後の見通し\n- 自民・維新の実務者協議で、原潜、非核三原則、防衛費の規模が議題に。\n- 巨額の建造・維持コストや、国内外の懸念への対応が議論の焦点になる。","why_it_matters":"原潜の検討は日本の防衛政策の大きな転換点になり得るテーマで、防衛費＝税負担の議論とも直結します。年末の3文書改定に向けて報道が増えるはずです。","importance":2,"published":"2026-11-10","sources":[{"title":"Yahoo!ニュース: 原子力潜水艦 導入視野に検討へ","url":"https://news.yahoo.co.jp/pickup/6602067"},{"title":"デイリースポーツ: 自民、原潜の保有検討求める意見","url":"https://daily.co.jp/society/politics/2026/11/11/0021022269.shtml"},{"title":"KSB瀬戸内海放送（ANN）: 安保3文書改定に向け与党議論スタート 原子力潜水艦導入など今後の焦点","url":"https://news.ksb.co.jp/ann/article/17039123"}],"id":"world-7"},{"title":"イラン、濃縮ウラン国外搬出を拒否 米国との緊張続く","subcategory":"国際","summary":"イラン最高安全保障評議会のレザイ書記は、濃縮核物質を「1原子たりとも」国外に出さないと表明し、米国の新たな攻撃には遠方の米軍基地への報復で応じると警告しました。米軍は今月上旬にもイランへの限定攻撃を行っており、中東情勢の緊張が続いています。","detail":"### 背景\n- 2026年に入り米国とイランの軍事的緊張が高まり、米軍は11月上旬にもイランの防空システムなどを標的に限定的な攻撃を実施。\n- イランの高濃縮ウランの所在・量は不透明で、国際社会の懸念材料となっている。\n\n### 何が起きたか\n- レザイ書記はレバノンのテレビ局に対し、**濃縮核物質を国外に搬出しない**と明言。\n- 米国との交渉は現在行われていないとし、新たな攻撃には遠方の米軍基地を標的に報復すると警告。\n- ロシアが高濃縮ウランの引き取りを提案していたが、イランは拒否。カタール経由で独自の提案を送ったとされる。\n- イランは、アルゼンチンの海軍・空軍を「テロ組織」に指定するなど、対外的な強硬姿勢も見せている。\n\n### 今後の見通し\n- 米国がさらなる攻撃に踏み切るか、外交交渉が再開するかが焦点。\n- 中東の緊張は**原油価格**や海上輸送を通じて日本経済にも影響し得る。","why_it_matters":"中東情勢は原油・ガソリン価格や物価に直結し、エネルギーの多くを輸入に頼る日本にとって無関係ではありません。米・イランの応酬は引き続き注視が必要です。","importance":2,"published":"2026-11-11","sources":[{"title":"Al-Monitor: Iran will not allow enriched nuclear material to leave the country, security chief says","url":"https://www.al-monitor.com/originals/2026/11/iran-will-not-allow-enriched-nuclear-material-leave-country-security-chief-says"},{"title":"The Washington Times: Tehran will not move 'a single atom' of enriched uranium from its territory, Iranian official says","url":"https://washingtontimes.com/news/2026/nov/11/tehran-not-move-single-atom-enriched-uranium-territory-iranian"},{"title":"U.S. News: US Military Carries Out New Targeted Strikes on Iran as Tehran's Leaders Weigh Mediator's Proposals","url":"https://www.usnews.com/news/politics/articles/2026-11-06/iran-is-reviewing-proposals-focusing-on-tehrans-nuclear-program-officials-say"}],"id":"world-8"}]}],"podcast":{"title":"11月12日のブリーフィング","duration_min":7,"script":[{"speaker":"アオイ","text":"おはようございます。11月12日、木曜日のデイリーブリーフィングです。進行のアオイです。"},{"speaker":"ケン","text":"聞き手のケンです。今日はどんな内容ですか？"},{"speaker":"アオイ","text":"今日はAIの新モデルと業務ツールの発表ラッシュ、日本のポーカー大会の話題、そしてマーケットと国内外の大きな動きの3本立てです。"},{"speaker":"ケン","text":"まずはAIからお願いします。"},{"speaker":"アオイ","text":"アンソロピックが9日に、新しいフロンティアモデル『クロード フェイブル 5.2』を発表しました。前のバージョンより2割ほど安くなって、コーディング性能が大きく伸びたとしています。"},{"speaker":"ケン","text":"性能が上がって値下げ、というのはありがたいですね。"},{"speaker":"アオイ","text":"そうなんです。これまでコストで見送っていた、コード生成や長い資料の分析の自動化を、試算し直す価値があります。"},{"speaker":"アオイ","text":"同じくアンソロピックは、会議に参加して議事録を取るAI、表計算、共同ホワイトボードもクロードに追加しました。業務アプリの領域に本格的に入ってきた形です。"},{"speaker":"ケン","text":"会議の記録からタスク化まで、AIに任せるのが当たり前になりそうですね。"},{"speaker":"アオイ","text":"グーグルは、フロンティアモデル『ジェミニ 4 カーボン』を10日から一般にも広く開放しました。100万トークンあたり入力2ドル、出力10ドルという導入価格です。"},{"speaker":"アオイ","text":"オープンAIは、企業がチャットGPT上の自社の見え方を管理したり、接客用のエージェントを置いたりできる機能をベータで出しました。"},{"speaker":"ケン","text":"つまり、チャットGPTが新しい集客の窓口になる、ということですか？"},{"speaker":"アオイ","text":"その通りです。AI検索で自社がどう紹介されるかを、今のうちに整えておく価値があります。国内では、LINEヤフーのAIエージェント『エージェント アイ』が単独アプリになりました。"},{"speaker":"ケン","text":"ほかに押さえておくものは？"},{"speaker":"アオイ","text":"アドビが全製品にAIエージェントを広げたこと、メタが格安の軽量モデル『ミューズ エンバー』を出したことです。簡単な処理は安いモデル、難しい判断は上位モデル、という使い分けでコストを大きく下げられます。"},{"speaker":"ケン","text":"では次、ポーカーです。"},{"speaker":"アオイ","text":"日本最大級のポーカーツアー、JOPTの大阪大会が11月3日に閉幕しました。メインイベントは863エントリーを集めて、韓国のプレイヤーが優勝しています。"},{"speaker":"ケン","text":"863人！かなりの規模ですね。"},{"speaker":"アオイ","text":"オンライン予選からライブ本戦へ、という挑戦の流れが定着しています。グローリーアカデミーとしては、来年3月の大阪や東京大会に向けて、予選対策や大人数トーナメントの講座を組むチャンスです。"},{"speaker":"アオイ","text":"韓国の済州島のポーカーフェスティバルでは、日本人プレイヤーが相次いでタイトルを取りました。岡本詩菜さんもイベントで優勝しています。"},{"speaker":"ケン","text":"海外遠征が身近になっていますね。"},{"speaker":"アオイ","text":"はい。遠征時の資金管理や、ノーリミットホールデム以外の種目の講座は、差別化しやすいテーマです。それから、ディーエヌエーのポーカーアプリ『エッジポーカー』に、全国大会機能と友達対戦が加わりました。"},{"speaker":"ケン","text":"アプリから始める人が増えれば、入門講座の需要も増えそうです。"},{"speaker":"アオイ","text":"まさにそこです。友達対戦の機能は、講座の練習会に使えないか検討してもいいと思います。"},{"speaker":"ケン","text":"最後に国内外の大きなニュースです。"},{"speaker":"アオイ","text":"まず国内。食料品の消費税を8%から1%に下げる法案が、11日に参議院で審議入りしました。与党は参院で少数なので、12月12日の会期末までに成立するかが焦点です。"},{"speaker":"ケン","text":"毎日の買い物に直結する話ですね。"},{"speaker":"アオイ","text":"次にマーケット。アメリカの10月の消費者物価が予想を上回り、12月の利上げ観測が強まりました。米国の10年債利回りは一時5%に迫っています。"},{"speaker":"アオイ","text":"その影響もあって円は1ドル159円台後半まで下がり、為替介入への警戒が再び出ています。一方、日経平均は789円高の6万1248円で3日続伸しました。"},{"speaker":"ケン","text":"エヌビディアの話も出ていましたよね。"},{"speaker":"アオイ","text":"はい。ウォール・ストリート・ジャーナルが、取締役会がジェンスン・フアンCEOの解任を準備していると報じ、株価は時間外で8から9%下がりました。まだ報道の段階で、取締役会の判断は確認できていません。"},{"speaker":"アオイ","text":"国際では、ロシアとウクライナが9カ月ぶりの協議で、大規模な捕虜交換に原則合意しました。ただ停戦や領土の問題は進んでいません。"},{"speaker":"アオイ","text":"また、来週のAPECに合わせた日中首脳会談は、調整がうまくいっていないと報じられています。ほかに、政府が安保3文書の改定で原子力潜水艦の検討を盛り込む方向であること、イランが濃縮ウランの国外搬出を拒否し米国との緊張が続いていることも押さえておきましょう。"},{"speaker":"ケン","text":"では最後に、今日これだけ覚えておけばOK、をお願いします。"},{"speaker":"アオイ","text":"1つ目。AIは上位モデルの値下げと業務ツール化が進み、自動化のコスト計算をやり直すタイミングです。"},{"speaker":"アオイ","text":"2つ目。JOPT大阪は863エントリー。オンライン予選からライブへの流れに合わせた講座づくりがチャンスです。"},{"speaker":"アオイ","text":"3つ目。米国の利上げ観測で円は159円台。食料品の消費税減税法案の行方とあわせて、家計に直結する動きに注目です。"},{"speaker":"ケン","text":"ありがとうございました。詳しくはダッシュボードの各記事をどうぞ。"},{"speaker":"アオイ","text":"それでは、今日もいい一日を。"}]}}];
+</script>
+<script>
+(() => {
+  const $ = (id) => document.getElementById(id);
+  const store = {
+    get(k, d) { try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch { return d; } },
+    set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
+  };
+  const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+  // Tiny markdown: headings, lists, bold, italics, links, paragraphs.
+  function inline(s) {
+    return esc(s)
+      .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
+      .replace(/(^|[^*])\*(?!\s)(.+?)\*/g, "$1<em>$2</em>")
+      .replace(/\[([^\]]+)\]\((https?:[^)\s]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
+  }
+  function md(src) {
+    const out = []; let list = null; let para = [];
+    const flushP = () => { if (para.length) { out.push("<p>" + inline(para.join(" ")) + "</p>"); para = []; } };
+    const flushL = () => { if (list) { out.push(`<${list.t}>` + list.items.map((i) => "<li>" + inline(i) + "</li>").join("") + `</${list.t}>`); list = null; } };
+    for (const raw of String(src || "").split(/\r?\n/)) {
+      const line = raw.trim();
+      let m;
+      if (!line) { flushP(); flushL(); continue; }
+      if ((m = line.match(/^#{1,6}\s+(.*)$/))) { flushP(); flushL(); out.push("<h3>" + inline(m[1]) + "</h3>"); continue; }
+      if ((m = line.match(/^[-*・]\s+(.*)$/))) { flushP(); if (!list || list.t !== "ul") { flushL(); list = { t: "ul", items: [] }; } list.items.push(m[1]); continue; }
+      if ((m = line.match(/^\d+[.)]\s+(.*)$/))) { flushP(); if (!list || list.t !== "ol") { flushL(); list = { t: "ol", items: [] }; } list.items.push(m[1]); continue; }
+      flushL(); para.push(line);
+    }
+    flushP(); flushL();
+    return out.join("");
+  }
+
+  const days = [...BRIEFINGS].sort((a, b) => b.date.localeCompare(a.date));
+  let dayIdx = 0;
+  let filter = store.get("db.filter", "all");
+  let readSet = new Set(store.get("db.read", []));
+  let flat = [];          // ordered list of items currently shown
+  let openIdx = -1;
+
+  const WEEK = ["日", "月", "火", "水", "木", "金", "土"];
+  function fmtDate(iso) {
+    const [y, m, d] = iso.split("-").map(Number);
+    const wd = WEEK[new Date(Date.UTC(y, m - 1, d)).getUTCDay()];
+    return `${y}年${m}月${d}日（${wd}）`;
+  }
+  const keyOf = (day, item) => `${day.date}:${item.id}`;
+  const impBar = (n) => `<span class="imp" title="重要度 ${n}/3">${[1, 2, 3].map((i) => `<i class="${i <= n ? "on" : ""}"></i>`).join("")}</span>`;
+
+  function renderDateNav() {
+    $("dateSel").innerHTML = days.map((d, i) => `<option value="${i}">${esc(fmtDate(d.date))}</option>`).join("");
+    $("dateSel").value = String(dayIdx);
+    $("prevDay").disabled = dayIdx >= days.length - 1;
+    $("nextDay").disabled = dayIdx <= 0;
+  }
+
+  function render() {
+    const day = days[dayIdx];
+    renderDateNav();
+    if (!day) { $("dateTitle").textContent = "まだブリーフィングがありません"; return; }
+    $("dateTitle").textContent = fmtDate(day.date);
+    $("headline").textContent = day.headline || "";
+
+    const topics = day.topics || [];
+    if (filter !== "all" && !topics.some((t) => t.id === filter)) filter = "all";
+    const total = topics.reduce((n, t) => n + (t.items || []).length, 0);
+    $("filters").innerHTML =
+      `<button class="chip" type="button" data-f="all" aria-pressed="${filter === "all"}">すべて <span class="n">${total}</span></button>` +
+      topics.map((t) => `<button class="chip" type="button" data-f="${esc(t.id)}" style="--c:${esc(t.color)}" aria-pressed="${filter === t.id}"><span class="dot"></span>${esc(t.name)} <span class="n">${(t.items || []).length}</span></button>`).join("");
+
+    flat = [];
+    $("topics").innerHTML = topics.filter((t) => filter === "all" || t.id === filter).map((t) => {
+      const items = [...(t.items || [])].sort((a, b) => (b.importance || 0) - (a.importance || 0));
+      const unread = items.filter((it) => !readSet.has(keyOf(day, it))).length;
+      const cards = items.map((it) => {
+        const idx = flat.push({ topic: t, item: it }) - 1;
+        const read = readSet.has(keyOf(day, it));
+        return `<button class="card${read ? " read" : ""}" type="button" data-i="${idx}" style="--c:${esc(t.color)}">
+          <div class="meta">${impBar(it.importance || 1)}${it.subcategory ? `<span class="tag">${esc(it.subcategory)}</span>` : ""}${it.published ? `<span>${esc(it.published)}</span>` : ""}</div>
+          <h3>${esc(it.title)}</h3>
+          <p>${esc(it.summary)}</p>
+          <span class="more">詳細を読む →</span>
+        </button>`;
+      }).join("");
+      return `<section style="--c:${esc(t.color)}" aria-labelledby="h-${esc(t.id)}">
+        <div class="topic-head"><span class="bar"></span><h2 id="h-${esc(t.id)}">${esc(t.name)}</h2><span class="count">未読 ${unread} / ${items.length}件</span></div>
+        ${items.length ? `<div class="cards">${cards}</div>` : `<div class="empty">今日は特筆すべきニュースはありませんでした。</div>`}
+      </section>`;
+    }).join("");
+
+    const gen = day.generated_at ? new Date(day.generated_at) : null;
+    $("foot").textContent = `生成: ${gen && !isNaN(gen) ? gen.toLocaleString("ja-JP") : day.date} ／ アーカイブ ${days.length}日分 ／ 情報は各出典をご確認ください`;
+    loadPodcast(day);
+  }
+
+  // ---------- Detail sheet ----------
+  function openItem(i) {
+    if (i < 0 || i >= flat.length) return;
+    openIdx = i;
+    const { topic, item } = flat[i];
+    const day = days[dayIdx];
+    $("sheet").style.setProperty("--c", topic.color);
+    $("sMeta").innerHTML = `<span class="tag" style="background:${esc(topic.color)};color:#fff">${esc(topic.name)}</span>${item.subcategory ? `<span class="tag">${esc(item.subcategory)}</span>` : ""}${impBar(item.importance || 1)}${item.published ? `<span>${esc(item.published)}</span>` : ""}`;
+    $("sTitle").textContent = item.title;
+    $("sWhy").innerHTML = item.why_it_matters ? `<b>なぜ重要か</b>${esc(item.why_it_matters)}` : "";
+    $("sWhy").style.display = item.why_it_matters ? "" : "none";
+    $("sBody").innerHTML = md(item.detail || item.summary);
+    const src = item.sources || [];
+    $("sSrc").innerHTML = src.length ? `<b>出典</b><ol>${src.map((s) => `<li><a href="${esc(s.url)}" target="_blank" rel="noopener">${esc(s.title || s.url)}</a></li>`).join("")}</ol>` : "";
+    $("sPrev").disabled = i === 0; $("sNext").disabled = i === flat.length - 1;
+    readSet.add(keyOf(day, item)); store.set("db.read", [...readSet].slice(-2000));
+    $("sRead").textContent = "未読に戻す";
+    $("sheet").classList.add("open"); $("scrim").classList.add("open");
+    $("sheet").setAttribute("aria-hidden", "false"); $("sheet").scrollTop = 0;
+    $("sClose").focus({ preventScroll: true });
+  }
+  function closeSheet() {
+    $("sheet").classList.remove("open"); $("scrim").classList.remove("open");
+    $("sheet").setAttribute("aria-hidden", "true");
+    const keep = openIdx; openIdx = -1; render();
+    const card = document.querySelector(`.card[data-i="${keep}"]`); if (card) card.focus({ preventScroll: true });
+  }
+
+  // ---------- Podcast (Web Speech API) ----------
+  const synth = window.speechSynthesis;
+  let script = [], line = 0, playing = false, voices = [];
+  function pickVoices() {
+    if (!synth) return;
+    const ja = synth.getVoices().filter((v) => /^ja/i.test(v.lang));
+    const pref = (re) => ja.find((v) => re.test(v.name));
+    const a = pref(/Kyoko|Nanami|Female|女性|Haruka|Ayumi/i) || ja[0];
+    const b = pref(/Otoya|Keita|Ichiro|Male|男性|Hattori/i) || ja.find((v) => v !== a) || a;
+    voices = [a, b];
+  }
+  if (synth) { pickVoices(); synth.onvoiceschanged = pickVoices; }
+
+  function loadPodcast(day) {
+    stop();
+    const p = day.podcast || {};
+    script = Array.isArray(p.script) ? p.script : [];
+    line = 0;
+    $("pTitle").textContent = p.title || `${fmtDate(day.date)}のブリーフィング`;
+    $("tList").innerHTML = script.map((s, i) => `<li data-l="${i}"><b>${esc(s.speaker || "")}</b><span>${esc(s.text)}</span></li>`).join("");
+    $("pLine").textContent = !synth ? "このブラウザは読み上げに対応していません（台本は読めます）"
+      : script.length ? `約${p.duration_min || Math.max(1, Math.round(script.reduce((n, s) => n + s.text.length, 0) / 330))}分・${script.length}セリフ` : "今日のポッドキャスト台本はありません";
+    updateProg();
+  }
+  function updateProg() {
+    $("pProg").style.width = script.length ? `${(line / script.length) * 100}%` : "0";
+    document.querySelectorAll("#tList li").forEach((li) => li.classList.toggle("now", Number(li.dataset.l) === line && (playing || line > 0)));
+    const now = document.querySelector("#tList li.now");
+    if (now && $("transcript").classList.contains("open")) now.scrollIntoView({ block: "nearest" });
+    $("playIcon").innerHTML = playing ? '<path d="M6 4h4v16H6zM14 4h4v16h-4z"/>' : '<path d="M7 4v16l13-8z"/>';
+    $("play").setAttribute("aria-label", playing ? "一時停止" : "再生");
+  }
+  function speak() {
+    if (!synth || line >= script.length) { playing = false; if (line >= script.length) { line = 0; $("pLine").textContent = "再生が終わりました"; } updateProg(); return; }
+    const s = script[line];
+    const speakers = [...new Set(script.map((x) => x.speaker))];
+    const u = new SpeechSynthesisUtterance(s.text);
+    u.lang = "ja-JP";
+    const who = Math.max(0, speakers.indexOf(s.speaker)) % 2;
+    if (voices[who]) u.voice = voices[who];
+    u.pitch = voices[0] === voices[1] && who === 1 ? 0.8 : 1;
+    u.rate = Number($("pRate").value);
+    const my = line;
+    u.onend = () => { if (playing && line === my) { line++; speak(); } };
+    u.onerror = (e) => { if (e.error !== "interrupted" && e.error !== "canceled") { playing = false; $("pLine").textContent = "読み上げを開始できませんでした。もう一度押してください"; updateProg(); } };
+    $("pLine").textContent = `${s.speaker || ""}：${s.text}`;
+    updateProg();
+    synth.speak(u);
+  }
+  function stop() { playing = false; if (synth) synth.cancel(); }
+  function jump(to) { const was = playing; stop(); line = Math.min(Math.max(0, to), Math.max(0, script.length - 1)); if (was) { playing = true; speak(); } else updateProg(); }
+
+  // ---------- Events ----------
+  $("filters").addEventListener("click", (e) => { const b = e.target.closest("[data-f]"); if (!b) return; filter = b.dataset.f; store.set("db.filter", filter); render(); });
+  $("topics").addEventListener("click", (e) => { const c = e.target.closest(".card"); if (c) openItem(Number(c.dataset.i)); });
+  $("sClose").onclick = closeSheet; $("scrim").onclick = closeSheet;
+  $("sPrev").onclick = () => openItem(openIdx - 1);
+  $("sNext").onclick = () => openItem(openIdx + 1);
+  $("sRead").onclick = () => {
+    const day = days[dayIdx]; const k = keyOf(day, flat[openIdx].item);
+    if (readSet.has(k)) { readSet.delete(k); $("sRead").textContent = "既読にする"; } else { readSet.add(k); $("sRead").textContent = "未読に戻す"; }
+    store.set("db.read", [...readSet]);
+  };
+  document.addEventListener("keydown", (e) => {
+    if (!$("sheet").classList.contains("open")) return;
+    if (e.key === "Escape") closeSheet();
+    if (e.key === "ArrowRight") openItem(openIdx + 1);
+    if (e.key === "ArrowLeft") openItem(openIdx - 1);
+  });
+  $("dateSel").onchange = (e) => { dayIdx = Number(e.target.value); render(); window.scrollTo(0, 0); };
+  $("prevDay").onclick = () => { dayIdx = Math.min(days.length - 1, dayIdx + 1); render(); };
+  $("nextDay").onclick = () => { dayIdx = Math.max(0, dayIdx - 1); render(); };
+  $("play").onclick = () => {
+    if (!synth || !script.length) return;
+    if (playing) { stop(); updateProg(); return; }
+    pickVoices(); playing = true; speak();
+  };
+  $("pBack").onclick = () => jump(line - 1);
+  $("pFwd").onclick = () => jump(line + 1);
+  $("pRate").onchange = () => { if (playing) jump(line); store.set("db.rate", $("pRate").value); };
+  $("pRate").value = store.get("db.rate", "1.2");
+  $("pScript").onclick = () => { const open = $("transcript").classList.toggle("open"); $("pScript").setAttribute("aria-expanded", String(open)); updateProg(); };
+  $("tList").addEventListener("click", (e) => { const li = e.target.closest("li"); if (!li) return; stop(); line = Number(li.dataset.l); playing = true; speak(); });
+
+  render();
+})();
+</script>
+</body>
+</html>

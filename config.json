@@ -1,0 +1,10 @@
+{
+  "artifact": {
+    "slug": "fea2dd65-20b4-4944-a9b0-da8dae764ce0",
+    "url": "https://claude.ai/artifact/YSj9M9tagvGjk5NFrn91UK"
+  },
+  "schedule": {
+    "cron": "CRON_TZ=Asia/Tokyo 43 5 * * *",
+    "note": "毎朝 5:43（日本時間）に Claude Code の Routine が prompts/daily-run.md を実行"
+  }
+}

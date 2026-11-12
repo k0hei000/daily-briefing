@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Daily Briefing</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho+B1:wght@600;800&family=Zen+Kaku+Gothic+New:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+/* Layout idea: a morning newspaper front page. Masthead with date + headline,
+   topic sections as columns of story cards, a detail reader sheet, and a
+   sticky podcast bar that reads the day's script aloud. */
+:root {
+  --paper: #f6f5f1;
+  --surface: #ffffff;
+  --ink: #1b1f2a;
+  --ink-soft: #5b6170;
+  --rule: #dcdad3;
+  --accent: #b4342b;          /* masthead red, used sparingly */
+  --chip: #eceae4;
+  --shadow: 0 1px 2px rgba(20,22,30,.06), 0 6px 24px rgba(20,22,30,.06);
+  --font-display: "Shippori Mincho B1", "Hiragino Mincho ProN", "Yu Mincho", serif;
+  --font-body: "Zen Kaku Gothic New", "Hiragino Sans", "Yu Gothic", system-ui, sans-serif;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #14161c; --surface: #1c1f27; --ink: #ecebe6; --ink-soft: #a3a7b3;
+    --rule: #2e323d; --accent: #ef6b5f; --chip: #272a34;
+    --shadow: 0 1px 2px rgba(0,0,0,.3), 0 6px 24px rgba(0,0,0,.25);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --paper: #14161c; --surface: #1c1f27; --ink: #ecebe6; --ink-soft: #a3a7b3;
+  --rule: #2e323d; --accent: #ef6b5f; --chip: #272a34;
+  --shadow: 0 1px 2px rgba(0,0,0,.3), 0 6px 24px rgba(0,0,0,.25);
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body {
+  background: var(--paper); color: var(--ink);
+  font-family: var(--font-body); font-size: 15px; line-height: 1.75;
+  padding-bottom: 120px;
+}
+a { color: inherit; }
+button { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.wrap { max-width: 1180px; margin: 0 auto; padding: 0 20px; }
+
+/* Masthead */
+.mast { border-bottom: 3px double var(--ink); padding: 28px 0 18px; }
+.mast-top { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between;
+  font-size: 13px; color: var(--ink-soft); letter-spacing: .04em; }
+.brand { font-family: var(--font-display); font-weight: 800; color: var(--accent); letter-spacing: .12em; font-size: 14px; }
+.datenav { display: flex; gap: 6px; align-items: center; }
+.datenav button, .datenav select {
+  background: var(--surface); border: 1px solid var(--rule); border-radius: 6px; padding: 4px 10px; cursor: pointer;
+  color: var(--ink); font: inherit; font-size: 13px;
+}
+.datenav button:disabled { opacity: .35; cursor: default; }
+.mast h1 { font-family: var(--font-display); font-weight: 800; font-size: clamp(30px, 5vw, 46px);
+  line-height: 1.25; margin: 14px 0 6px; text-wrap: balance; letter-spacing: .02em; }
+.headline { font-size: 16px; color: var(--ink-soft); max-width: 62em; margin: 0; text-wrap: pretty; }
+.stats { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+
+/* Topic filter chips */
+.chip { display: inline-flex; align-items: center; gap: 8px; border: 1px solid var(--rule); background: var(--surface);
+  border-radius: 999px; padding: 4px 12px; font-size: 13px; cursor: pointer; }
+.chip .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--c, var(--ink)); }
+.chip[aria-pressed="true"] { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+.chip .n { font-variant-numeric: tabular-nums; opacity: .7; }
+
+/* Sections */
+.topics { display: grid; gap: 40px; margin-top: 32px; }
+.topic-head { display: flex; align-items: baseline; gap: 12px; border-bottom: 1px solid var(--ink); padding-bottom: 6px; margin-bottom: 16px; }
+.topic-head h2 { font-family: var(--font-display); font-size: 24px; margin: 0; }
+.topic-head .bar { width: 6px; align-self: stretch; border-radius: 2px; background: var(--c); }
+.topic-head .count { color: var(--ink-soft); font-size: 13px; margin-left: auto; font-variant-numeric: tabular-nums; }
+.cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 14px; }
+.card {
+  position: relative; background: var(--surface); border: 1px solid var(--rule); border-radius: 10px;
+  padding: 16px 16px 14px 20px; display: flex; flex-direction: column; gap: 8px; text-align: left; cursor: pointer;
+  transition: transform .15s ease, box-shadow .15s ease;
+}
+.card::before { content: ""; position: absolute; left: 0; top: 12px; bottom: 12px; width: 4px; border-radius: 0 3px 3px 0; background: var(--c); }
+.card:hover { box-shadow: var(--shadow); transform: translateY(-1px); }
+.card.read { opacity: .55; }
+.card.read::after { content: "既読"; position: absolute; top: 12px; right: 12px; font-size: 11px; color: var(--ink-soft);
+  border: 1px solid var(--rule); border-radius: 4px; padding: 0 6px; }
+.meta { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; font-size: 12px; color: var(--ink-soft); }
+.tag { background: var(--chip); border-radius: 4px; padding: 1px 8px; }
+.imp { display: inline-flex; gap: 2px; }
+.imp i { width: 6px; height: 12px; border-radius: 1px; background: var(--rule); display: inline-block; }
+.imp i.on { background: var(--accent); }
+.card h3 { font-size: 17px; line-height: 1.5; margin: 0; text-wrap: balance; font-weight: 700; }
+.card p { margin: 0; color: var(--ink-soft); font-size: 14px; }
+.card .more { font-size: 13px; color: var(--c); font-weight: 700; margin-top: auto; }
+.empty { color: var(--ink-soft); font-size: 14px; padding: 12px 0; }
+
+/* Detail sheet */
+.scrim { position: fixed; inset: 0; background: rgba(10,12,18,.45); display: none; z-index: 20; }
+.scrim.open { display: block; }
+.sheet {
+  position: fixed; top: 0; right: 0; bottom: 0; width: min(680px, 100%); background: var(--surface);
+  z-index: 21; transform: translateX(100%); transition: transform .22s ease; overflow-y: auto;
+  border-left: 1px solid var(--rule); padding: 22px 24px 140px;
+}
+.sheet.open { transform: none; }
+@media (prefers-reduced-motion: reduce) { .sheet, .card { transition: none; } }
+.sheet-top { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.iconbtn { white-space: nowrap; background: var(--chip); border: 0; border-radius: 8px; padding: 6px 12px; cursor: pointer; font-size: 13px; }
+.sheet h2 { font-family: var(--font-display); font-size: 26px; line-height: 1.45; margin: 14px 0 10px; text-wrap: balance; }
+.why { border-left: 4px solid var(--c); background: var(--chip); border-radius: 0 8px 8px 0; padding: 10px 14px; margin: 14px 0; font-size: 14px; }
+.why b { display: block; font-size: 12px; color: var(--ink-soft); letter-spacing: .06em; }
+.md { max-width: 40em; }
+.md h3, .md h4 { font-size: 16px; margin: 20px 0 6px; }
+.md ul, .md ol { padding-left: 1.3em; }
+.md p { margin: 0 0 12px; }
+.sources { margin-top: 22px; border-top: 1px solid var(--rule); padding-top: 12px; font-size: 13px; }
+.sources ol { padding-left: 1.3em; margin: 6px 0 0; }
+.sources a { word-break: break-all; }
+.sheet-nav { display: flex; justify-content: space-between; gap: 8px; margin-top: 24px; }
+
+/* Podcast bar */
+.pod {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 30; background: var(--ink); color: var(--paper);
+  border-top: 1px solid var(--rule);
+}
+.pod-row { display: flex; align-items: center; gap: 14px; padding: 10px 20px; max-width: 1180px; margin: 0 auto; }
+.play { width: 44px; height: 44px; border-radius: 50%; border: 0; background: var(--accent); color: #fff; cursor: pointer;
+  display: grid; place-items: center; flex: none; }
+.play svg { width: 18px; height: 18px; fill: currentColor; }
+.pod-info { flex: 1; min-width: 0; }
+.pod-title { font-weight: 700; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pod-line { font-size: 12px; opacity: .75; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.prog { height: 3px; background: rgba(255,255,255,.18); border-radius: 2px; margin-top: 6px; overflow: hidden; }
+.prog span { display: block; height: 100%; background: var(--accent); width: 0; }
+.pod-ctrl { display: flex; gap: 6px; align-items: center; flex: none; }
+.pod-ctrl button, .pod-ctrl select { background: rgba(255,255,255,.1); border: 0; color: inherit; border-radius: 6px; padding: 6px 10px;
+  cursor: pointer; font-size: 13px; font: inherit; }
+.pod-ctrl option { color: #111; }
+.transcript { max-height: 0; overflow-y: auto; transition: max-height .2s ease; }
+.transcript.open { max-height: 46vh; }
+.transcript ol { list-style: none; margin: 0 auto; padding: 4px 20px 16px; max-width: 1180px; display: grid; gap: 4px; }
+.transcript li { font-size: 14px; padding: 6px 10px; border-radius: 6px; cursor: pointer; opacity: .75; display: grid; grid-template-columns: 4.5em 1fr; gap: 8px; }
+.transcript li b { font-weight: 700; opacity: .8; }
+.transcript li.now { background: rgba(255,255,255,.1); opacity: 1; }
+.pod { padding-bottom: env(safe-area-inset-bottom, 0); }
+/* ---------- Phone layout ---------- */
+@media (max-width: 640px) {
+  body { font-size: 16px; padding-bottom: calc(110px + env(safe-area-inset-bottom, 0px)); }
+  .wrap { padding: 0 16px; }
+  .mast { padding: 14px 0 0; border-bottom-width: 3px; }
+  .mast-top { flex-direction: column; align-items: stretch; gap: 8px; }
+  .datenav { display: grid; grid-template-columns: auto 1fr auto; }
+  .datenav button, .datenav select { min-height: 40px; font-size: 14px; }
+  .datenav button { padding: 4px 12px; }
+  .mast h1 { font-size: 28px; margin: 12px 0 4px; }
+  .headline { font-size: 15px; }
+  /* topic chips: sticky, single row, swipe sideways */
+  .stats { position: sticky; top: 0; z-index: 10; background: var(--paper); flex-wrap: nowrap; overflow-x: auto;
+    margin: 12px -16px 0; padding: 10px 16px; scrollbar-width: none; border-top: 1px solid var(--rule); }
+  .stats::-webkit-scrollbar { display: none; }
+  .chip { flex: none; min-height: 38px; padding: 4px 14px; }
+  .topics { gap: 32px; margin-top: 20px; }
+  .topic-head h2 { font-size: 21px; }
+  .cards { grid-template-columns: 1fr; gap: 10px; }
+  .card { padding: 14px 14px 12px 18px; }
+  .card:hover { transform: none; box-shadow: none; }
+  .card h3 { font-size: 16.5px; }
+  /* detail sheet becomes a full-screen reader */
+  .sheet { width: 100%; border-left: 0; padding: 0 18px calc(150px + env(safe-area-inset-bottom, 0px)); }
+  .sheet-top { position: sticky; top: 0; background: var(--surface); padding: 12px 0 10px; border-bottom: 1px solid var(--rule); z-index: 1; }
+  .sheet h2 { font-size: 22px; }
+  .md { font-size: 16px; }
+  .iconbtn { min-height: 40px; padding: 8px 14px; }
+  .sheet-nav { padding-top: 12px; border-top: 1px solid var(--rule); }
+  .sheet-nav .iconbtn { flex: 1; font-size: 13px; padding: 8px 6px; }
+  .pod-row { padding: 10px 16px; gap: 10px; }
+  .hide-sm { display: none; }
+  .pod-ctrl button, .pod-ctrl select { min-height: 38px; }
+  .transcript.open { max-height: 55vh; }
+  .transcript li { grid-template-columns: 1fr; gap: 0; }
+}
+footer { color: var(--ink-soft); font-size: 12px; margin: 48px 0 0; }
+</style>
+</head>
+<body>
+<header class="mast">
+  <div class="wrap">
+    <div class="mast-top">
+      <span class="brand">DAILY BRIEFING</span>
+      <div class="datenav">
+        <button id="prevDay" type="button" aria-label="前の日">← 前日</button>
+        <select id="dateSel" aria-label="日付を選ぶ"></select>
+        <button id="nextDay" type="button" aria-label="次の日">翌日 →</button>
+      </div>
+    </div>
+    <h1 id="dateTitle"></h1>
+    <p class="headline" id="headline"></p>
+    <div class="stats" id="filters" role="toolbar" aria-label="トピックで絞り込む"></div>
+  </div>
+</header>
+
+<main class="wrap">
+  <div class="topics" id="topics"></div>
+  <footer id="foot"></footer>
+</main>
+
+<div class="scrim" id="scrim"></div>
+<aside class="sheet" id="sheet" aria-hidden="true" aria-label="記事の詳細">
+  <div class="sheet-top">
+    <div class="meta" id="sMeta"></div>
+    <button class="iconbtn" id="sClose" type="button">閉じる ✕</button>
+  </div>
+  <h2 id="sTitle"></h2>
+  <div class="why" id="sWhy"></div>
+  <div class="md" id="sBody"></div>
+  <div class="sources" id="sSrc"></div>
+  <div class="sheet-nav">
+    <button class="iconbtn" id="sPrev" type="button">← 前の記事</button>
+    <button class="iconbtn" id="sRead" type="button">未読に戻す</button>
+    <button class="iconbtn" id="sNext" type="button">次の記事 →</button>
+  </div>
+</aside>
+
+<section class="pod" aria-label="ポッドキャスト">
+  <div class="transcript" id="transcript"><ol id="tList"></ol></div>
+  <div class="pod-row">
+    <button class="play" id="play" type="button" aria-label="再生">
+      <svg viewBox="0 0 24 24" id="playIcon"><path d="M7 4v16l13-8z"/></svg>
+    </button>
+    <div class="pod-info">
+      <div class="pod-title" id="pTitle"></div>
+      <div class="pod-line" id="pLine">再生ボタンで今日のニュースを読み上げます</div>
+      <div class="prog"><span id="pProg"></span></div>
+    </div>
+    <div class="pod-ctrl">
+      <button id="pBack" type="button" class="hide-sm" aria-label="前のセリフ">⟲</button>
+      <button id="pFwd" type="button" class="hide-sm" aria-label="次のセリフ">⟳</button>
+      <select id="pRate" aria-label="再生速度">
+        <option value="1">1.0x</option><option value="1.2" selected>1.2x</option>
+        <option value="1.4">1.4x</option><option value="1.6">1.6x</option><option value="1.8">1.8x</option>
+      </select>
+      <button id="pScript" type="button" aria-expanded="false">台本</button>
+    </div>
+  </div>
+</section>
+
+<script>
+const BRIEFINGS = /*__DATA__*/[];
+</script>
+<script>
+(() => {
+  const $ = (id) => document.getElementById(id);
+  const store = {
+    get(k, d) { try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch { return d; } },
+    set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
+  };
+  const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+  // Tiny markdown: headings, lists, bold, italics, links, paragraphs.
+  function inline(s) {
+    return esc(s)
+      .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
+      .replace(/(^|[^*])\*(?!\s)(.+?)\*/g, "$1<em>$2</em>")
+      .replace(/\[([^\]]+)\]\((https?:[^)\s]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
+  }
+  function md(src) {
+    const out = []; let list = null; let para = [];
+    const flushP = () => { if (para.length) { out.push("<p>" + inline(para.join(" ")) + "</p>"); para = []; } };
+    const flushL = () => { if (list) { out.push(`<${list.t}>` + list.items.map((i) => "<li>" + inline(i) + "</li>").join("") + `</${list.t}>`); list = null; } };
+    for (const raw of String(src || "").split(/\r?\n/)) {
+      const line = raw.trim();
+      let m;
+      if (!line) { flushP(); flushL(); continue; }
+      if ((m = line.match(/^#{1,6}\s+(.*)$/))) { flushP(); flushL(); out.push("<h3>" + inline(m[1]) + "</h3>"); continue; }
+      if ((m = line.match(/^[-*・]\s+(.*)$/))) { flushP(); if (!list || list.t !== "ul") { flushL(); list = { t: "ul", items: [] }; } list.items.push(m[1]); continue; }
+      if ((m = line.match(/^\d+[.)]\s+(.*)$/))) { flushP(); if (!list || list.t !== "ol") { flushL(); list = { t: "ol", items: [] }; } list.items.push(m[1]); continue; }
+      flushL(); para.push(line);
+    }
+    flushP(); flushL();
+    return out.join("");
+  }
+
+  const days = [...BRIEFINGS].sort((a, b) => b.date.localeCompare(a.date));
+  let dayIdx = 0;
+  let filter = store.get("db.filter", "all");
+  let readSet = new Set(store.get("db.read", []));
+  let flat = [];          // ordered list of items currently shown
+  let openIdx = -1;
+
+  const WEEK = ["日", "月", "火", "水", "木", "金", "土"];
+  function fmtDate(iso) {
+    const [y, m, d] = iso.split("-").map(Number);
+    const wd = WEEK[new Date(Date.UTC(y, m - 1, d)).getUTCDay()];
+    return `${y}年${m}月${d}日（${wd}）`;
+  }
+  const keyOf = (day, item) => `${day.date}:${item.id}`;
+  const impBar = (n) => `<span class="imp" title="重要度 ${n}/3">${[1, 2, 3].map((i) => `<i class="${i <= n ? "on" : ""}"></i>`).join("")}</span>`;
+
+  function renderDateNav() {
+    $("dateSel").innerHTML = days.map((d, i) => `<option value="${i}">${esc(fmtDate(d.date))}</option>`).join("");
+    $("dateSel").value = String(dayIdx);
+    $("prevDay").disabled = dayIdx >= days.length - 1;
+    $("nextDay").disabled = dayIdx <= 0;
+  }
+
+  function render() {
+    const day = days[dayIdx];
+    renderDateNav();
+    if (!day) { $("dateTitle").textContent = "まだブリーフィングがありません"; return; }
+    $("dateTitle").textContent = fmtDate(day.date);
+    $("headline").textContent = day.headline || "";
+
+    const topics = day.topics || [];
+    if (filter !== "all" && !topics.some((t) => t.id === filter)) filter = "all";
+    const total = topics.reduce((n, t) => n + (t.items || []).length, 0);
+    $("filters").innerHTML =
+      `<button class="chip" type="button" data-f="all" aria-pressed="${filter === "all"}">すべて <span class="n">${total}</span></button>` +
+      topics.map((t) => `<button class="chip" type="button" data-f="${esc(t.id)}" style="--c:${esc(t.color)}" aria-pressed="${filter === t.id}"><span class="dot"></span>${esc(t.name)} <span class="n">${(t.items || []).length}</span></button>`).join("");
+
+    flat = [];
+    $("topics").innerHTML = topics.filter((t) => filter === "all" || t.id === filter).map((t) => {
+      const items = [...(t.items || [])].sort((a, b) => (b.importance || 0) - (a.importance || 0));
+      const unread = items.filter((it) => !readSet.has(keyOf(day, it))).length;
+      const cards = items.map((it) => {
+        const idx = flat.push({ topic: t, item: it }) - 1;
+        const read = readSet.has(keyOf(day, it));
+        return `<button class="card${read ? " read" : ""}" type="button" data-i="${idx}" style="--c:${esc(t.color)}">
+          <div class="meta">${impBar(it.importance || 1)}${it.subcategory ? `<span class="tag">${esc(it.subcategory)}</span>` : ""}${it.published ? `<span>${esc(it.published)}</span>` : ""}</div>
+          <h3>${esc(it.title)}</h3>
+          <p>${esc(it.summary)}</p>
+          <span class="more">詳細を読む →</span>
+        </button>`;
+      }).join("");
+      return `<section style="--c:${esc(t.color)}" aria-labelledby="h-${esc(t.id)}">
+        <div class="topic-head"><span class="bar"></span><h2 id="h-${esc(t.id)}">${esc(t.name)}</h2><span class="count">未読 ${unread} / ${items.length}件</span></div>
+        ${items.length ? `<div class="cards">${cards}</div>` : `<div class="empty">今日は特筆すべきニュースはありませんでした。</div>`}
+      </section>`;
+    }).join("");
+
+    const gen = day.generated_at ? new Date(day.generated_at) : null;
+    $("foot").textContent = `生成: ${gen && !isNaN(gen) ? gen.toLocaleString("ja-JP") : day.date} ／ アーカイブ ${days.length}日分 ／ 情報は各出典をご確認ください`;
+    loadPodcast(day);
+  }
+
+  // ---------- Detail sheet ----------
+  function openItem(i) {
+    if (i < 0 || i >= flat.length) return;
+    openIdx = i;
+    const { topic, item } = flat[i];
+    const day = days[dayIdx];
+    $("sheet").style.setProperty("--c", topic.color);
+    $("sMeta").innerHTML = `<span class="tag" style="background:${esc(topic.color)};color:#fff">${esc(topic.name)}</span>${item.subcategory ? `<span class="tag">${esc(item.subcategory)}</span>` : ""}${impBar(item.importance || 1)}${item.published ? `<span>${esc(item.published)}</span>` : ""}`;
+    $("sTitle").textContent = item.title;
+    $("sWhy").innerHTML = item.why_it_matters ? `<b>なぜ重要か</b>${esc(item.why_it_matters)}` : "";
+    $("sWhy").style.display = item.why_it_matters ? "" : "none";
+    $("sBody").innerHTML = md(item.detail || item.summary);
+    const src = item.sources || [];
+    $("sSrc").innerHTML = src.length ? `<b>出典</b><ol>${src.map((s) => `<li><a href="${esc(s.url)}" target="_blank" rel="noopener">${esc(s.title || s.url)}</a></li>`).join("")}</ol>` : "";
+    $("sPrev").disabled = i === 0; $("sNext").disabled = i === flat.length - 1;
+    readSet.add(keyOf(day, item)); store.set("db.read", [...readSet].slice(-2000));
+    $("sRead").textContent = "未読に戻す";
+    $("sheet").classList.add("open"); $("scrim").classList.add("open");
+    $("sheet").setAttribute("aria-hidden", "false"); $("sheet").scrollTop = 0;
+    $("sClose").focus({ preventScroll: true });
+  }
+  function closeSheet() {
+    $("sheet").classList.remove("open"); $("scrim").classList.remove("open");
+    $("sheet").setAttribute("aria-hidden", "true");
+    const keep = openIdx; openIdx = -1; render();
+    const card = document.querySelector(`.card[data-i="${keep}"]`); if (card) card.focus({ preventScroll: true });
+  }
+
+  // ---------- Podcast (Web Speech API) ----------
+  const synth = window.speechSynthesis;
+  let script = [], line = 0, playing = false, voices = [];
+  function pickVoices() {
+    if (!synth) return;
+    const ja = synth.getVoices().filter((v) => /^ja/i.test(v.lang));
+    const pref = (re) => ja.find((v) => re.test(v.name));
+    const a = pref(/Kyoko|Nanami|Female|女性|Haruka|Ayumi/i) || ja[0];
+    const b = pref(/Otoya|Keita|Ichiro|Male|男性|Hattori/i) || ja.find((v) => v !== a) || a;
+    voices = [a, b];
+  }
+  if (synth) { pickVoices(); synth.onvoiceschanged = pickVoices; }
+
+  function loadPodcast(day) {
+    stop();
+    const p = day.podcast || {};
+    script = Array.isArray(p.script) ? p.script : [];
+    line = 0;
+    $("pTitle").textContent = p.title || `${fmtDate(day.date)}のブリーフィング`;
+    $("tList").innerHTML = script.map((s, i) => `<li data-l="${i}"><b>${esc(s.speaker || "")}</b><span>${esc(s.text)}</span></li>`).join("");
+    $("pLine").textContent = !synth ? "このブラウザは読み上げに対応していません（台本は読めます）"
+      : script.length ? `約${p.duration_min || Math.max(1, Math.round(script.reduce((n, s) => n + s.text.length, 0) / 330))}分・${script.length}セリフ` : "今日のポッドキャスト台本はありません";
+    updateProg();
+  }
+  function updateProg() {
+    $("pProg").style.width = script.length ? `${(line / script.length) * 100}%` : "0";
+    document.querySelectorAll("#tList li").forEach((li) => li.classList.toggle("now", Number(li.dataset.l) === line && (playing || line > 0)));
+    const now = document.querySelector("#tList li.now");
+    if (now && $("transcript").classList.contains("open")) now.scrollIntoView({ block: "nearest" });
+    $("playIcon").innerHTML = playing ? '<path d="M6 4h4v16H6zM14 4h4v16h-4z"/>' : '<path d="M7 4v16l13-8z"/>';
+    $("play").setAttribute("aria-label", playing ? "一時停止" : "再生");
+  }
+  function speak() {
+    if (!synth || line >= script.length) { playing = false; if (line >= script.length) { line = 0; $("pLine").textContent = "再生が終わりました"; } updateProg(); return; }
+    const s = script[line];
+    const speakers = [...new Set(script.map((x) => x.speaker))];
+    const u = new SpeechSynthesisUtterance(s.text);
+    u.lang = "ja-JP";
+    const who = Math.max(0, speakers.indexOf(s.speaker)) % 2;
+    if (voices[who]) u.voice = voices[who];
+    u.pitch = voices[0] === voices[1] && who === 1 ? 0.8 : 1;
+    u.rate = Number($("pRate").value);
+    const my = line;
+    u.onend = () => { if (playing && line === my) { line++; speak(); } };
+    u.onerror = (e) => { if (e.error !== "interrupted" && e.error !== "canceled") { playing = false; $("pLine").textContent = "読み上げを開始できませんでした。もう一度押してください"; updateProg(); } };
+    $("pLine").textContent = `${s.speaker || ""}：${s.text}`;
+    updateProg();
+    synth.speak(u);
+  }
+  function stop() { playing = false; if (synth) synth.cancel(); }
+  function jump(to) { const was = playing; stop(); line = Math.min(Math.max(0, to), Math.max(0, script.length - 1)); if (was) { playing = true; speak(); } else updateProg(); }
+
+  // ---------- Events ----------
+  $("filters").addEventListener("click", (e) => { const b = e.target.closest("[data-f]"); if (!b) return; filter = b.dataset.f; store.set("db.filter", filter); render(); });
+  $("topics").addEventListener("click", (e) => { const c = e.target.closest(".card"); if (c) openItem(Number(c.dataset.i)); });
+  $("sClose").onclick = closeSheet; $("scrim").onclick = closeSheet;
+  $("sPrev").onclick = () => openItem(openIdx - 1);
+  $("sNext").onclick = () => openItem(openIdx + 1);
+  $("sRead").onclick = () => {
+    const day = days[dayIdx]; const k = keyOf(day, flat[openIdx].item);
+    if (readSet.has(k)) { readSet.delete(k); $("sRead").textContent = "既読にする"; } else { readSet.add(k); $("sRead").textContent = "未読に戻す"; }
+    store.set("db.read", [...readSet]);
+  };
+  document.addEventListener("keydown", (e) => {
+    if (!$("sheet").classList.contains("open")) return;
+    if (e.key === "Escape") closeSheet();
+    if (e.key === "ArrowRight") openItem(openIdx + 1);
+    if (e.key === "ArrowLeft") openItem(openIdx - 1);
+  });
+  $("dateSel").onchange = (e) => { dayIdx = Number(e.target.value); render(); window.scrollTo(0, 0); };
+  $("prevDay").onclick = () => { dayIdx = Math.min(days.length - 1, dayIdx + 1); render(); };
+  $("nextDay").onclick = () => { dayIdx = Math.max(0, dayIdx - 1); render(); };
+  $("play").onclick = () => {
+    if (!synth || !script.length) return;
+    if (playing) { stop(); updateProg(); return; }
+    pickVoices(); playing = true; speak();
+  };
+  $("pBack").onclick = () => jump(line - 1);
+  $("pFwd").onclick = () => jump(line + 1);
+  $("pRate").onchange = () => { if (playing) jump(line); store.set("db.rate", $("pRate").value); };
+  $("pRate").value = store.get("db.rate", "1.2");
+  $("pScript").onclick = () => { const open = $("transcript").classList.toggle("open"); $("pScript").setAttribute("aria-expanded", String(open)); updateProg(); };
+  $("tList").addEventListener("click", (e) => { const li = e.target.closest("li"); if (!li) return; stop(); line = Number(li.dataset.l); playing = true; speak(); });
+
+  render();
+})();
+</script>
+</body>
+</html>
